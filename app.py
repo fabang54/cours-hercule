@@ -2,6 +2,23 @@ import streamlit as st
 import pandas as pd
 import os
 
+# =========================
+# PROTECTION ENSEIGNANT
+# =========================
+
+mot_de_passe = st.text_input(
+    "Mot de passe enseignant",
+    type="password"
+)
+
+if mot_de_passe != st.secrets["mot_de_passe"]:
+    st.info("🔒 Espace réservé à l'enseignant.")
+    st.stop()
+
+# =========================
+# GESTION DES SÉANCES
+# =========================
+
 st.title("Gestion des séances")
 
 st.subheader("Nouvelle séance")
@@ -29,6 +46,10 @@ travail = st.text_area("Travail à faire")
 
 observations = st.text_area("Observations")
 
+# =========================
+# ENREGISTREMENT
+# =========================
+
 if st.button("Enregistrer"):
 
     nouvelle_seance = pd.DataFrame([{
@@ -46,16 +67,19 @@ if st.button("Enregistrer"):
     fichier = "seances.csv"
 
     if os.path.exists(fichier):
+
         nouvelle_seance.to_csv(
             fichier,
             mode="a",
             header=False,
             index=False
         )
+
     else:
+
         nouvelle_seance.to_csv(
             fichier,
             index=False
         )
 
-    st.success("Séance enregistrée !")
+    st.success("✅ Séance enregistrée !")
