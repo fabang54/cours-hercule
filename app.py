@@ -17,19 +17,6 @@ if mot_de_passe != st.secrets["mot_de_passe"]:
 
 
 # ============================================================
-# MENU ESPACE ENSEIGNANT
-# ============================================================
-
-page = st.sidebar.radio(
-    "Espace enseignant",
-    [
-        "📚 Gestion des séances",
-        "📖 Cahier de texte"
-    ]
-)
-
-
-# ============================================================
 # LISTES
 # ============================================================
 
@@ -83,112 +70,144 @@ OBSERVATIONS = [
 
 
 # ============================================================
-# PAGE 1 : GESTION DES SÉANCES
+# MENU ESPACE ENSEIGNANT
+# ============================================================
+
+page = st.sidebar.radio(
+    "Espace enseignant",
+    [
+        "📚 Gestion des séances",
+        "📖 Cahier de texte"
+    ]
+)
+
+
+# ============================================================
+# PAGE : GESTION DES SÉANCES
 # ============================================================
 
 if page == "📚 Gestion des séances":
 
     st.title("📚 Gestion des séances")
-
     st.subheader("Nouvelle séance")
 
+    # --------------------------------------------------------
+    # VALEURS PAR DÉFAUT
+    # --------------------------------------------------------
 
-    # ========================================================
+    if "seance_enregistree" not in st.session_state:
+        st.session_state.seance_enregistree = False
+
+    # --------------------------------------------------------
     # ÉLÈVE
-    # ========================================================
+    # --------------------------------------------------------
 
     eleve = st.selectbox(
         "Élève",
-        ELEVES
+        ELEVES,
+        key="eleve"
     )
 
-
-    # ========================================================
+    # --------------------------------------------------------
     # DATE ET HEURES
-    # ========================================================
+    # --------------------------------------------------------
 
     date = st.date_input(
-        "Date de la séance"
+        "Date de la séance",
+        key="date"
     )
 
     heure_debut = st.time_input(
-        "Heure de début"
+        "Heure de début",
+        key="heure_debut"
     )
 
     heure_fin = st.time_input(
-        "Heure de fin"
+        "Heure de fin",
+        key="heure_fin"
     )
 
-
-    # ========================================================
+    # --------------------------------------------------------
     # MODE
-    # ========================================================
+    # --------------------------------------------------------
 
     mode = st.selectbox(
         "Mode",
-        ["Présentiel", "Distanciel"]
+        ["Présentiel", "Distanciel"],
+        key="mode"
     )
 
-
-    # ========================================================
+    # --------------------------------------------------------
     # DISCIPLINE(S)
-    # ========================================================
+    # --------------------------------------------------------
 
     discipline = st.multiselect(
         "Discipline(s)",
-        DISCIPLINES
+        DISCIPLINES,
+        key="discipline"
     )
 
-
-    # ========================================================
-    # CONTENU DE LA SÉANCE
-    # ========================================================
+    # --------------------------------------------------------
+    # CONTENU
+    # --------------------------------------------------------
 
     contenu = st.multiselect(
         "Contenu de la séance",
-        CONTENUS
+        CONTENUS,
+        key="contenu"
     )
 
     contenu_manuel = st.text_input(
-        "Ajouter un contenu personnalisé (facultatif)"
+        "Ajouter un contenu personnalisé (facultatif)",
+        key="contenu_manuel"
     )
 
-    if contenu_manuel:
-        contenu.append(contenu_manuel)
-
-
-    # ========================================================
+    # --------------------------------------------------------
     # TRAVAIL À FAIRE
-    # ========================================================
+    # --------------------------------------------------------
 
     travail = st.multiselect(
         "Travail à faire",
-        TRAVAUX
+        TRAVAUX,
+        key="travail"
     )
 
-
-    # ========================================================
+    # --------------------------------------------------------
     # OBSERVATIONS
-    # ========================================================
+    # --------------------------------------------------------
 
     observation = st.multiselect(
         "Observations",
-        OBSERVATIONS
+        OBSERVATIONS,
+        key="observation"
     )
 
     observation_manuel = st.text_input(
-        "Ajouter une observation personnalisée (facultatif)"
+        "Ajouter une observation personnalisée (facultatif)",
+        key="observation_manuel"
     )
-
-    if observation_manuel:
-        observation.append(observation_manuel)
-
 
     # ========================================================
     # ENREGISTREMENT
     # ========================================================
 
     if st.button("💾 Enregistrer la séance"):
+
+        # Ajouter le contenu manuel
+        contenu_final = contenu.copy()
+
+        if contenu_manuel:
+            contenu_final.append(contenu_manuel)
+
+        # Ajouter l'observation manuelle
+        observation_finale = observation.copy()
+
+        if observation_manuel:
+            observation_finale.append(observation_manuel)
+
+        # ----------------------------------------------------
+        # CRÉATION DE LA LIGNE
+        # ----------------------------------------------------
 
         nouvelle_seance = pd.DataFrame([{
             "eleve": eleve,
@@ -197,10 +216,14 @@ if page == "📚 Gestion des séances":
             "heure_fin": heure_fin,
             "mode": mode,
             "disciplines": ", ".join(discipline),
-            "contenu": ", ".join(contenu),
+            "contenu": ", ".join(contenu_final),
             "travail": ", ".join(travail),
-            "observations": ", ".join(observation)
+            "observations": ", ".join(observation_finale)
         }])
+
+        # ----------------------------------------------------
+        # ENREGISTREMENT CSV
+        # ----------------------------------------------------
 
         fichier = "seances.csv"
 
@@ -220,11 +243,29 @@ if page == "📚 Gestion des séances":
                 index=False
             )
 
+        # ----------------------------------------------------
+        # MESSAGE
+        # ----------------------------------------------------
+
         st.success("✅ Séance enregistrée !")
+
+        # ----------------------------------------------------
+        # RÉINITIALISATION
+        # ----------------------------------------------------
+
+        st.session_state["eleve"] = ELEVES[0]
+        st.session_state["discipline"] = []
+        st.session_state["contenu"] = []
+        st.session_state["contenu_manuel"] = ""
+        st.session_state["travail"] = []
+        st.session_state["observation"] = []
+        st.session_state["observation_manuel"] = ""
+
+        st.rerun()
 
 
 # ============================================================
-# PAGE 2 : CAHIER DE TEXTE
+# PAGE : CAHIER DE TEXTE
 # ============================================================
 
 elif page == "📖 Cahier de texte":
@@ -238,15 +279,68 @@ elif page == "📖 Cahier de texte":
         "par les séances enregistrées."
     )
 
-    st.write("👨‍🎓 Élève")
-    st.selectbox(
-        "Sélectionner un élève",
+    eleve_cahier = st.selectbox(
+        "Élève",
         ELEVES,
         key="cahier_eleve"
     )
 
     st.write("📅 Historique des séances")
 
-    st.write(
-        "Aucune séance affichée pour le moment."
-    )
+    fichier = "seances.csv"
+
+    if os.path.exists(fichier):
+
+        df = pd.read_csv(fichier)
+
+        # Séances de l'élève sélectionné
+        df_eleve = df[
+            df["eleve"] == eleve_cahier
+        ]
+
+        if len(df_eleve) > 0:
+
+            for _, seance in df_eleve.iterrows():
+
+                st.markdown("---")
+
+                st.subheader(
+                    f"📅 {seance['date']}"
+                )
+
+                st.write(
+                    f"⏰ {seance['heure_debut']} → "
+                    f"{seance['heure_fin']}"
+                )
+
+                st.write(
+                    f"📚 **Discipline(s) :** "
+                    f"{seance['disciplines']}"
+                )
+
+                st.write(
+                    f"📖 **Contenu :** "
+                    f"{seance['contenu']}"
+                )
+
+                st.write(
+                    f"📝 **Travail à faire :** "
+                    f"{seance['travail']}"
+                )
+
+                st.write(
+                    f"💬 **Observations :** "
+                    f"{seance['observations']}"
+                )
+
+        else:
+
+            st.info(
+                "Aucune séance enregistrée pour cet élève."
+            )
+
+    else:
+
+        st.info(
+            "Aucune séance enregistrée pour le moment."
+        )
