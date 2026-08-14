@@ -42,8 +42,7 @@ CONTENUS = [
     "Proportionnalité",
     "Géométrie",
     "Statistiques",
-    "Probabilités",
-    "Autre"
+    "Probabilités"
 ]
 
 TRAVAUX = [
@@ -52,8 +51,7 @@ TRAVAUX = [
     "Revoir le cours",
     "Apprendre le cours",
     "Préparer le prochain cours",
-    "Aucun",
-    "Autre"
+    "Aucun"
 ]
 
 OBSERVATIONS = [
@@ -63,8 +61,7 @@ OBSERVATIONS = [
     "Difficultés importantes",
     "Bonne participation",
     "Très bonne séance",
-    "Progrès constatés",
-    "Autre"
+    "Progrès constatés"
 ]
 
 
@@ -125,48 +122,47 @@ discipline = st.selectbox(
 
 
 # ============================================================
-# CONTENU
+# CONTENU DE LA SÉANCE
 # ============================================================
 
-contenu = st.selectbox(
+contenu = st.multiselect(
     "Contenu de la séance",
     CONTENUS
 )
 
-if contenu == "Autre":
-    contenu = st.text_input(
-        "Préciser le contenu"
-    )
+contenu_manuel = st.text_input(
+    "Ajouter un contenu personnalisé (facultatif)"
+)
+
+if contenu_manuel:
+    contenu.append(contenu_manuel)
 
 
 # ============================================================
 # TRAVAIL À FAIRE
 # ============================================================
 
-travail = st.selectbox(
+travail = st.multiselect(
     "Travail à faire",
     TRAVAUX
 )
-
-if travail == "Autre":
-    travail = st.text_input(
-        "Préciser le travail à faire"
-    )
 
 
 # ============================================================
 # OBSERVATIONS
 # ============================================================
 
-observation = st.selectbox(
+observation = st.multiselect(
     "Observations",
     OBSERVATIONS
 )
 
-if observation == "Autre":
-    observation = st.text_input(
-        "Préciser l'observation"
-    )
+observation_manuel = st.text_input(
+    "Ajouter une observation personnalisée (facultatif)"
+)
+
+if observation_manuel:
+    observation.append(observation_manuel)
 
 
 # ============================================================
@@ -182,9 +178,9 @@ if st.button("💾 Enregistrer la séance"):
         "heure_fin": heure_fin,
         "mode": mode,
         "disciplines": discipline,
-        "contenu": contenu,
-        "travail": travail,
-        "observations": observation
+        "contenu": ", ".join(contenu),
+        "travail": ", ".join(travail),
+        "observations": ", ".join(observation)
     }])
 
     fichier = "seances.csv"
