@@ -150,21 +150,11 @@ if menu == "📚 Gestion des séances":
 
     st.subheader("Nouvelle séance")
 
-
-    # ========================================================
-    # ÉLÈVE
-    # ========================================================
-
     eleve = st.selectbox(
         "Élève",
         ELEVES,
         key="nouvelle_eleve"
     )
-
-
-    # ========================================================
-    # DATE ET HEURES
-    # ========================================================
 
     date_seance = st.date_input(
         "Date de la séance",
@@ -184,32 +174,17 @@ if menu == "📚 Gestion des séances":
         key="nouvelle_heure_fin"
     )
 
-
-    # ========================================================
-    # MODE
-    # ========================================================
-
     mode = st.selectbox(
         "Mode",
         ["Présentiel", "Distanciel"],
         key="nouvelle_mode"
     )
 
-
-    # ========================================================
-    # DISCIPLINES
-    # ========================================================
-
     disciplines = st.multiselect(
         "Discipline(s)",
         DISCIPLINES,
         key="nouvelles_disciplines"
     )
-
-
-    # ========================================================
-    # CONTENU
-    # ========================================================
 
     contenu_selection = st.multiselect(
         "Contenu de la séance",
@@ -231,11 +206,6 @@ if menu == "📚 Gestion des séances":
 
         contenu_final += contenu_manuel.strip()
 
-
-    # ========================================================
-    # TRAVAIL À FAIRE
-    # ========================================================
-
     travail_selection = st.selectbox(
         "Travail à faire",
         TRAVAUX,
@@ -253,11 +223,6 @@ if menu == "📚 Gestion des séances":
 
         travail = travail_selection
 
-
-    # ========================================================
-    # OBSERVATIONS
-    # ========================================================
-
     observations_selection = st.multiselect(
         "Observations",
         OBSERVATIONS,
@@ -269,7 +234,9 @@ if menu == "📚 Gestion des séances":
         key="observation_manuel"
     )
 
-    observation_finale = ", ".join(observations_selection)
+    observation_finale = ", ".join(
+        observations_selection
+    )
 
     if observation_manuel.strip():
 
@@ -277,11 +244,6 @@ if menu == "📚 Gestion des séances":
             observation_finale += " — "
 
         observation_finale += observation_manuel.strip()
-
-
-    # ========================================================
-    # ENREGISTREMENT
-    # ========================================================
 
     if st.button(
         "💾 Enregistrer la séance",
@@ -300,13 +262,11 @@ if menu == "📚 Gestion des séances":
 
         duree_minutes = fin_minutes - debut_minutes
 
-
         if duree_minutes <= 0:
 
             st.error(
                 "❌ L'heure de fin doit être après l'heure de début."
             )
-
 
         elif not disciplines:
 
@@ -314,13 +274,11 @@ if menu == "📚 Gestion des séances":
                 "❌ Sélectionnez au moins une discipline."
             )
 
-
         elif not contenu_final.strip():
 
             st.error(
                 "❌ Indiquez le contenu de la séance."
             )
-
 
         else:
 
@@ -355,13 +313,14 @@ if menu == "📚 Gestion des séances":
                     observation_finale
             }
 
-
             try:
 
-                supabase \
-                    .table("seances") \
-                    .insert(nouvelle_seance) \
+                (
+                    supabase
+                    .table("seances")
+                    .insert(nouvelle_seance)
                     .execute()
+                )
 
                 st.success(
                     "✅ Séance enregistrée dans Supabase !"
@@ -386,11 +345,9 @@ elif menu == "📖 Cahier de texte":
 
     df = recuperer_seances()
 
-
     if df.empty:
 
         st.info("Aucune séance enregistrée.")
-
 
     else:
 
@@ -404,13 +361,11 @@ elif menu == "📖 Cahier de texte":
             df["eleve"] == eleve_cahier
         ].copy()
 
-
         if df_eleve.empty:
 
             st.info(
                 "Aucune séance enregistrée pour cet élève."
             )
-
 
         else:
 
@@ -418,7 +373,6 @@ elif menu == "📖 Cahier de texte":
                 "date",
                 ascending=False
             )
-
 
             for _, ligne in df_eleve.iterrows():
 
@@ -456,20 +410,18 @@ elif menu == "📖 Cahier de texte":
 
 
 # ============================================================
-# MODIFICATION D'UNE SÉANCE
+# MODIFICATION / SUPPRESSION
 # ============================================================
 
 elif menu == "✏️ Modifier une séance":
 
-    st.header("✏️ Modifier une séance")
+    st.header("✏️ Modifier ou supprimer une séance")
 
     df = recuperer_seances()
-
 
     if df.empty:
 
         st.info("Aucune séance enregistrée.")
-
 
     else:
 
@@ -483,17 +435,14 @@ elif menu == "✏️ Modifier une séance":
             key="modif_eleve"
         )
 
-
         df_eleve = df[
             df["eleve"] == eleve_modification
         ].copy()
-
 
         df_eleve = df_eleve.sort_values(
             "date",
             ascending=False
         )
-
 
         choix = []
 
@@ -505,26 +454,20 @@ elif menu == "✏️ Modifier une séance":
                 f"{ligne['contenu']}"
             )
 
-
         index_choisi = st.selectbox(
-            "Séance à modifier",
+            "Séance",
             range(len(choix)),
             format_func=lambda x: choix[x],
             key="choix_seance"
         )
 
-
         ligne = df_eleve.iloc[index_choisi]
 
         identifiant = ligne["id"]
 
+        st.markdown("---")
 
-        # ====================================================
-        # FORMULAIRE
-        # ====================================================
-
-        st.subheader("Modifier la séance")
-
+        st.subheader("📝 Informations de la séance")
 
         nouvelle_date = st.date_input(
             "Date",
@@ -535,7 +478,6 @@ elif menu == "✏️ Modifier une séance":
             key="modif_date"
         )
 
-
         try:
 
             heure_debut_initiale = datetime.strptime(
@@ -550,7 +492,6 @@ elif menu == "✏️ Modifier une séance":
                 "%H:%M"
             ).time()
 
-
         try:
 
             heure_fin_initiale = datetime.strptime(
@@ -564,7 +505,6 @@ elif menu == "✏️ Modifier une séance":
                 str(ligne["heure_fin"]),
                 "%H:%M"
             ).time()
-
 
         nouvelle_heure_debut = st.time_input(
             "Heure de début",
@@ -572,13 +512,11 @@ elif menu == "✏️ Modifier une séance":
             key="modif_heure_debut"
         )
 
-
         nouvelle_heure_fin = st.time_input(
             "Heure de fin",
             value=heure_fin_initiale,
             key="modif_heure_fin"
         )
-
 
         nouveau_mode = st.selectbox(
             "Mode",
@@ -591,13 +529,11 @@ elif menu == "✏️ Modifier une séance":
             key="modif_mode"
         )
 
-
         nouvelle_disciplines = st.text_input(
             "Discipline(s)",
             value=str(ligne["disciplines"]),
             key="modif_disciplines"
         )
-
 
         nouveau_contenu = st.text_area(
             "Contenu",
@@ -605,13 +541,11 @@ elif menu == "✏️ Modifier une séance":
             key="modif_contenu"
         )
 
-
         nouveau_travail = st.text_area(
             "Travail à faire",
             value=str(ligne["travail"]),
             key="modif_travail"
         )
-
 
         nouvelles_observations = st.text_area(
             "Observations",
@@ -619,92 +553,182 @@ elif menu == "✏️ Modifier une séance":
             key="modif_observations"
         )
 
+        st.markdown("---")
+
+        col1, col2 = st.columns(2)
 
         # ====================================================
-        # SAUVEGARDE
+        # MODIFICATION
         # ====================================================
 
-        if st.button(
-            "💾 Enregistrer les modifications",
-            type="primary"
-        ):
+        with col1:
 
-            debut_minutes = (
-                nouvelle_heure_debut.hour * 60
-                + nouvelle_heure_debut.minute
-            )
+            if st.button(
+                "💾 Enregistrer les modifications",
+                type="primary",
+                use_container_width=True
+            ):
 
-            fin_minutes = (
-                nouvelle_heure_fin.hour * 60
-                + nouvelle_heure_fin.minute
-            )
-
-            duree_minutes = fin_minutes - debut_minutes
-
-
-            if duree_minutes <= 0:
-
-                st.error(
-                    "❌ L'heure de fin doit être après "
-                    "l'heure de début."
+                debut_minutes = (
+                    nouvelle_heure_debut.hour * 60
+                    + nouvelle_heure_debut.minute
                 )
 
+                fin_minutes = (
+                    nouvelle_heure_fin.hour * 60
+                    + nouvelle_heure_fin.minute
+                )
 
-            else:
+                duree_minutes = (
+                    fin_minutes - debut_minutes
+                )
 
-                modifications = {
-
-                    "date":
-                        nouvelle_date.isoformat(),
-
-                    "heure_debut":
-                        nouvelle_heure_debut.strftime("%H:%M:%S"),
-
-                    "heure_fin":
-                        nouvelle_heure_fin.strftime("%H:%M:%S"),
-
-                    "duree_minutes":
-                        duree_minutes,
-
-                    "mode":
-                        nouveau_mode,
-
-                    "disciplines":
-                        nouvelle_disciplines,
-
-                    "contenu":
-                        nouveau_contenu,
-
-                    "travail":
-                        nouveau_travail,
-
-                    "observations":
-                        nouvelles_observations
-                }
-
-
-                try:
-
-                    supabase \
-                        .table("seances") \
-                        .update(modifications) \
-                        .eq("id", identifiant) \
-                        .execute()
-
-                    st.success(
-                        "✅ Séance modifiée avec succès !"
-                    )
-
-                    st.rerun()
-
-
-                except Exception as e:
+                if duree_minutes <= 0:
 
                     st.error(
-                        "❌ Erreur lors de la modification."
+                        "❌ L'heure de fin doit être après "
+                        "l'heure de début."
                     )
 
-                    st.write(e)
+                else:
+
+                    modifications = {
+
+                        "date":
+                            nouvelle_date.isoformat(),
+
+                        "heure_debut":
+                            nouvelle_heure_debut.strftime(
+                                "%H:%M:%S"
+                            ),
+
+                        "heure_fin":
+                            nouvelle_heure_fin.strftime(
+                                "%H:%M:%S"
+                            ),
+
+                        "duree_minutes":
+                            duree_minutes,
+
+                        "mode":
+                            nouveau_mode,
+
+                        "disciplines":
+                            nouvelle_disciplines,
+
+                        "contenu":
+                            nouveau_contenu,
+
+                        "travail":
+                            nouveau_travail,
+
+                        "observations":
+                            nouvelles_observations
+                    }
+
+                    try:
+
+                        (
+                            supabase
+                            .table("seances")
+                            .update(modifications)
+                            .eq("id", identifiant)
+                            .execute()
+                        )
+
+                        st.success(
+                            "✅ Séance modifiée avec succès !"
+                        )
+
+                        st.rerun()
+
+                    except Exception as e:
+
+                        st.error(
+                            "❌ Erreur lors de la modification."
+                        )
+
+                        st.write(e)
+
+        # ====================================================
+        # SUPPRESSION
+        # ====================================================
+
+        with col2:
+
+            if st.button(
+                "🗑️ Supprimer la séance",
+                use_container_width=True
+            ):
+
+                st.session_state[
+                    "confirmer_suppression"
+                ] = True
+
+        # ====================================================
+        # CONFIRMATION SUPPRESSION
+        # ====================================================
+
+        if st.session_state.get(
+            "confirmer_suppression",
+            False
+        ):
+
+            st.warning(
+                "⚠️ Voulez-vous vraiment supprimer "
+                "cette séance ?"
+            )
+
+            col_confirm, col_annuler = st.columns(2)
+
+            with col_confirm:
+
+                if st.button(
+                    "✅ Oui, supprimer",
+                    type="primary",
+                    use_container_width=True
+                ):
+
+                    try:
+
+                        (
+                            supabase
+                            .table("seances")
+                            .delete()
+                            .eq("id", identifiant)
+                            .execute()
+                        )
+
+                        st.success(
+                            "🗑️ Séance supprimée avec succès !"
+                        )
+
+                        st.session_state[
+                            "confirmer_suppression"
+                        ] = False
+
+                        st.rerun()
+
+                    except Exception as e:
+
+                        st.error(
+                            "❌ Erreur lors de la suppression."
+                        )
+
+                        st.write(e)
+
+            with col_annuler:
+
+                if st.button(
+                    "❌ Annuler",
+                    use_container_width=True
+                ):
+
+                    st.session_state[
+                        "confirmer_suppression"
+                    ] = False
+
+                    st.rerun()
 
 
 # ============================================================
@@ -717,11 +741,9 @@ elif menu == "📊 Bilan":
 
     df = recuperer_seances()
 
-
     if df.empty:
 
         st.info("Aucune séance enregistrée.")
-
 
     else:
 
@@ -731,18 +753,15 @@ elif menu == "📊 Bilan":
             key="bilan_eleve"
         )
 
-
         df_eleve = df[
             df["eleve"] == eleve_bilan
         ].copy()
-
 
         if df_eleve.empty:
 
             st.info(
                 "Aucune séance pour cet élève."
             )
-
 
         else:
 
@@ -751,11 +770,9 @@ elif menu == "📊 Bilan":
                 errors="coerce"
             ).fillna(0).sum()
 
-
             total_heures = total_minutes / 60
 
             nombre_seances = len(df_eleve)
-
 
             col1, col2 = st.columns(2)
 
@@ -773,9 +790,7 @@ elif menu == "📊 Bilan":
                     f"{total_heures:.2f} h"
                 )
 
-
             st.subheader("📚 Séances")
-
 
             st.dataframe(
                 df_eleve[
@@ -800,11 +815,9 @@ elif menu == "🧾 Facturation":
 
     df = recuperer_seances()
 
-
     if df.empty:
 
         st.info("Aucune séance enregistrée.")
-
 
     else:
 
@@ -813,11 +826,6 @@ elif menu == "🧾 Facturation":
             ELEVES,
             key="facturation_eleve"
         )
-
-
-        # ====================================================
-        # PÉRIODE
-        # ====================================================
 
         type_periode = st.selectbox(
             "Période de facturation",
@@ -829,7 +837,6 @@ elif menu == "🧾 Facturation":
             ],
             key="type_periode"
         )
-
 
         # ====================================================
         # MENSUELLE
@@ -844,7 +851,6 @@ elif menu == "🧾 Facturation":
                 key="facturation_mois"
             )
 
-
             annee = st.number_input(
                 "Année",
                 min_value=2020,
@@ -854,11 +860,9 @@ elif menu == "🧾 Facturation":
                 key="facturation_annee"
             )
 
-
             df["date"] = pd.to_datetime(
                 df["date"]
             )
-
 
             df_filtre = df[
                 (df["eleve"] == eleve_facturation)
@@ -868,7 +872,6 @@ elif menu == "🧾 Facturation":
                 (df["date"].dt.year == annee)
             ]
 
-
         # ====================================================
         # HEBDOMADAIRE
         # ====================================================
@@ -877,20 +880,18 @@ elif menu == "🧾 Facturation":
 
             date_debut = st.date_input(
                 "Début de la semaine",
+                value=date.today(),
                 key="semaine_debut"
             )
-
 
             date_fin = (
                 date_debut
                 + pd.Timedelta(days=6)
             )
 
-
             df["date"] = pd.to_datetime(
                 df["date"]
             )
-
 
             df_filtre = df[
                 (df["eleve"] == eleve_facturation)
@@ -899,7 +900,6 @@ elif menu == "🧾 Facturation":
                 &
                 (df["date"].dt.date <= date_fin)
             ]
-
 
         # ====================================================
         # PERSONNALISÉE
@@ -909,29 +909,38 @@ elif menu == "🧾 Facturation":
 
             date_debut = st.date_input(
                 "Date de début",
+                value=date.today(),
                 key="periode_debut"
             )
 
-
             date_fin = st.date_input(
                 "Date de fin",
+                value=date.today(),
                 key="periode_fin"
             )
-
 
             df["date"] = pd.to_datetime(
                 df["date"]
             )
 
+            if date_fin < date_debut:
 
-            df_filtre = df[
-                (df["eleve"] == eleve_facturation)
-                &
-                (df["date"].dt.date >= date_debut)
-                &
-                (df["date"].dt.date <= date_fin)
-            ]
+                st.error(
+                    "❌ La date de fin doit être "
+                    "postérieure à la date de début."
+                )
 
+                df_filtre = pd.DataFrame()
+
+            else:
+
+                df_filtre = df[
+                    (df["eleve"] == eleve_facturation)
+                    &
+                    (df["date"].dt.date >= date_debut)
+                    &
+                    (df["date"].dt.date <= date_fin)
+                ]
 
         # ====================================================
         # TOUTES LES SÉANCES
@@ -943,9 +952,8 @@ elif menu == "🧾 Facturation":
                 df["eleve"] == eleve_facturation
             ].copy()
 
-
         # ====================================================
-        # RÉSULTATS
+        # RÉSULTAT
         # ====================================================
 
         if df_filtre.empty:
@@ -954,7 +962,6 @@ elif menu == "🧾 Facturation":
                 "Aucune séance pour cette période."
             )
 
-
         else:
 
             total_minutes = pd.to_numeric(
@@ -962,15 +969,11 @@ elif menu == "🧾 Facturation":
                 errors="coerce"
             ).fillna(0).sum()
 
-
             total_heures = total_minutes / 60
-
 
             st.subheader("Résumé")
 
-
             col1, col2 = st.columns(2)
-
 
             with col1:
 
@@ -979,18 +982,12 @@ elif menu == "🧾 Facturation":
                     len(df_filtre)
                 )
 
-
             with col2:
 
                 st.metric(
                     "Nombre d'heures",
                     f"{total_heures:.2f} h"
                 )
-
-
-            # =================================================
-            # TARIF
-            # =================================================
 
             tarif = st.number_input(
                 "Tarif horaire (€)",
@@ -1000,22 +997,14 @@ elif menu == "🧾 Facturation":
                 key="tarif_horaire"
             )
 
-
             montant = total_heures * tarif
-
 
             st.metric(
                 "Montant de la facture",
                 f"{montant:.2f} €"
             )
 
-
-            # =================================================
-            # DÉTAIL
-            # =================================================
-
             st.subheader("Détail des séances")
-
 
             st.dataframe(
                 df_filtre[
