@@ -206,3 +206,6 @@ if st.button("💾 Enregistrer la séance"):
         )
 
     st.success("✅ Séance enregistrée !")
+
+    if st.button("➕ Nouvelle séance"):
+        st.rerun()
