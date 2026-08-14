@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from io import BytesIO
 
 from reportlab.lib.pagesizes import A4
@@ -100,7 +100,7 @@ page = st.sidebar.radio(
 
 
 # ============================================================
-# COMPTEUR POUR RÉINITIALISER LE FORMULAIRE
+# COMPTEUR FORMULAIRE
 # ============================================================
 
 if "formulaire_id" not in st.session_state:
@@ -135,28 +135,16 @@ if page == "📚 Gestion des séances":
 
         f = st.session_state.formulaire_id
 
-        # ----------------------------------------------------
-        # ÉLÈVE
-        # ----------------------------------------------------
-
         eleve = st.selectbox(
             "Élève",
             ELEVES,
             key=f"eleve_{f}"
         )
 
-        # ----------------------------------------------------
-        # DATE
-        # ----------------------------------------------------
-
         date_seance = st.date_input(
             "Date de la séance",
             key=f"date_{f}"
         )
-
-        # ----------------------------------------------------
-        # HEURES
-        # ----------------------------------------------------
 
         heure_debut = st.time_input(
             "Heure de début",
@@ -168,10 +156,6 @@ if page == "📚 Gestion des séances":
             key=f"heure_fin_{f}"
         )
 
-        # ----------------------------------------------------
-        # MODE
-        # ----------------------------------------------------
-
         mode = st.selectbox(
             "Mode",
             [
@@ -181,19 +165,11 @@ if page == "📚 Gestion des séances":
             key=f"mode_{f}"
         )
 
-        # ----------------------------------------------------
-        # DISCIPLINES
-        # ----------------------------------------------------
-
         discipline = st.multiselect(
             "Discipline(s)",
             DISCIPLINES,
             key=f"discipline_{f}"
         )
-
-        # ----------------------------------------------------
-        # CONTENU
-        # ----------------------------------------------------
 
         contenu = st.multiselect(
             "Contenu de la séance",
@@ -206,19 +182,11 @@ if page == "📚 Gestion des séances":
             key=f"contenu_manuel_{f}"
         )
 
-        # ----------------------------------------------------
-        # TRAVAIL
-        # ----------------------------------------------------
-
         travail = st.multiselect(
             "Travail à faire",
             TRAVAUX,
             key=f"travail_{f}"
         )
-
-        # ----------------------------------------------------
-        # OBSERVATIONS
-        # ----------------------------------------------------
 
         observation = st.multiselect(
             "Observations",
@@ -232,18 +200,10 @@ if page == "📚 Gestion des séances":
         )
 
 
-        # ====================================================
-        # ENREGISTREMENT
-        # ====================================================
-
         if st.button(
             "💾 Enregistrer la séance",
             key=f"enregistrer_{f}"
         ):
-
-            # ------------------------------------------------
-            # CALCUL DURÉE
-            # ------------------------------------------------
 
             debut_minutes = (
                 heure_debut.hour * 60
@@ -269,71 +229,44 @@ if page == "📚 Gestion des séances":
                 st.stop()
 
 
-            # ------------------------------------------------
-            # CONTENU FINAL
-            # ------------------------------------------------
-
             contenu_final = contenu.copy()
 
             if contenu_manuel.strip():
-
                 contenu_final.append(
                     contenu_manuel.strip()
                 )
 
 
-            # ------------------------------------------------
-            # OBSERVATION FINALE
-            # ------------------------------------------------
-
             observation_finale = observation.copy()
 
             if observation_manuel.strip():
-
                 observation_finale.append(
                     observation_manuel.strip()
                 )
 
 
-            # ------------------------------------------------
-            # CRÉATION DE LA SÉANCE
-            # ------------------------------------------------
-
             nouvelle_seance = pd.DataFrame([{
 
                 "eleve": eleve,
-
                 "date": date_seance,
-
                 "heure_debut": heure_debut,
-
                 "heure_fin": heure_fin,
-
                 "duree_minutes": duree_minutes,
-
                 "mode": mode,
-
                 "disciplines": ", ".join(
                     discipline
                 ),
-
                 "contenu": ", ".join(
                     contenu_final
                 ),
-
                 "travail": ", ".join(
                     travail
                 ),
-
                 "observations": ", ".join(
                     observation_finale
                 )
             }])
 
-
-            # ------------------------------------------------
-            # SAUVEGARDE
-            # ------------------------------------------------
 
             fichier = "seances.csv"
 
@@ -357,11 +290,6 @@ if page == "📚 Gestion des séances":
             st.success(
                 "✅ Séance enregistrée !"
             )
-
-
-            # ------------------------------------------------
-            # NOUVEAU FORMULAIRE
-            # ------------------------------------------------
 
             st.session_state.formulaire_id += 1
 
@@ -398,10 +326,6 @@ if page == "📚 Gestion des séances":
             st.stop()
 
 
-        # ----------------------------------------------------
-        # LISTE DES SÉANCES
-        # ----------------------------------------------------
-
         liste_seances = []
 
         for index, ligne in df.iterrows():
@@ -428,13 +352,6 @@ if page == "📚 Gestion des séances":
         ancienne_seance = df.iloc[index]
 
 
-        st.markdown("---")
-
-
-        # ----------------------------------------------------
-        # ÉLÈVE
-        # ----------------------------------------------------
-
         eleve_modif = st.selectbox(
             "Élève",
             ELEVES,
@@ -447,10 +364,6 @@ if page == "📚 Gestion des séances":
             )
         )
 
-
-        # ----------------------------------------------------
-        # DATE
-        # ----------------------------------------------------
 
         try:
 
@@ -468,10 +381,6 @@ if page == "📚 Gestion des séances":
             value=date_modif
         )
 
-
-        # ----------------------------------------------------
-        # HEURE DÉBUT
-        # ----------------------------------------------------
 
         try:
 
@@ -500,10 +409,6 @@ if page == "📚 Gestion des séances":
         )
 
 
-        # ----------------------------------------------------
-        # HEURE FIN
-        # ----------------------------------------------------
-
         try:
 
             heure_fin_modif = datetime.strptime(
@@ -531,10 +436,6 @@ if page == "📚 Gestion des séances":
         )
 
 
-        # ----------------------------------------------------
-        # MODE
-        # ----------------------------------------------------
-
         modes = [
             "Présentiel",
             "Distanciel"
@@ -556,10 +457,6 @@ if page == "📚 Gestion des séances":
         )
 
 
-        # ----------------------------------------------------
-        # DISCIPLINES
-        # ----------------------------------------------------
-
         anciennes_disciplines = str(
             ancienne_seance.get(
                 "disciplines",
@@ -579,10 +476,6 @@ if page == "📚 Gestion des séances":
             default=disciplines_selectionnees
         )
 
-
-        # ----------------------------------------------------
-        # CONTENU
-        # ----------------------------------------------------
 
         ancien_contenu = str(
             ancienne_seance.get(
@@ -604,10 +497,6 @@ if page == "📚 Gestion des séances":
         )
 
 
-        # ----------------------------------------------------
-        # CONTENU PERSONNALISÉ
-        # ----------------------------------------------------
-
         contenu_personnalise = [
             x.strip()
             for x in ancien_contenu.split(",")
@@ -622,10 +511,6 @@ if page == "📚 Gestion des séances":
             )
         )
 
-
-        # ----------------------------------------------------
-        # TRAVAIL
-        # ----------------------------------------------------
 
         ancien_travail = str(
             ancienne_seance.get(
@@ -647,10 +532,6 @@ if page == "📚 Gestion des séances":
         )
 
 
-        # ----------------------------------------------------
-        # OBSERVATIONS
-        # ----------------------------------------------------
-
         anciennes_observations = str(
             ancienne_seance.get(
                 "observations",
@@ -671,10 +552,6 @@ if page == "📚 Gestion des séances":
         )
 
 
-        # ----------------------------------------------------
-        # OBSERVATION PERSONNALISÉE
-        # ----------------------------------------------------
-
         observations_personnalisees = [
             x.strip()
             for x in anciennes_observations.split(",")
@@ -689,10 +566,6 @@ if page == "📚 Gestion des séances":
             )
         )
 
-
-        # ====================================================
-        # ENREGISTRER MODIFICATIONS
-        # ====================================================
 
         if st.button(
             "💾 Enregistrer les modifications"
@@ -727,7 +600,6 @@ if page == "📚 Gestion des séances":
             )
 
             if contenu_manuel_modif.strip():
-
                 contenu_final_modif.append(
                     contenu_manuel_modif.strip()
                 )
@@ -738,15 +610,10 @@ if page == "📚 Gestion des séances":
             )
 
             if observation_manuel_modif.strip():
-
                 observation_finale_modif.append(
                     observation_manuel_modif.strip()
                 )
 
-
-            # ------------------------------------------------
-            # MODIFICATION
-            # ------------------------------------------------
 
             df.at[
                 index,
@@ -807,10 +674,6 @@ if page == "📚 Gestion des séances":
             )
 
 
-            # ------------------------------------------------
-            # SAUVEGARDE
-            # ------------------------------------------------
-
             df.to_csv(
                 fichier,
                 index=False
@@ -833,16 +696,13 @@ elif page == "📖 Cahier de texte":
 
     st.subheader("Suivi des séances")
 
-
     eleve_cahier = st.selectbox(
         "Élève",
         ELEVES,
         key="cahier_eleve"
     )
 
-
     fichier = "seances.csv"
-
 
     if os.path.exists(fichier):
 
@@ -852,7 +712,6 @@ elif page == "📖 Cahier de texte":
             df["eleve"] == eleve_cahier
         ]
 
-
         if len(df_eleve) > 0:
 
             st.write(
@@ -860,10 +719,7 @@ elif page == "📖 Cahier de texte":
                 f"{eleve_cahier}**"
             )
 
-
-            # Plus récente en premier
             df_eleve = df_eleve.iloc[::-1]
-
 
             for _, seance in df_eleve.iterrows():
 
@@ -898,7 +754,6 @@ elif page == "📖 Cahier de texte":
                     f"{seance['observations']}"
                 )
 
-
         else:
 
             st.info(
@@ -906,12 +761,10 @@ elif page == "📖 Cahier de texte":
                 f"pour {eleve_cahier}."
             )
 
-
     else:
 
         st.info(
-            "Aucune séance enregistrée "
-            "pour le moment."
+            "Aucune séance enregistrée."
         )
 
 
@@ -927,21 +780,11 @@ elif page == "📊 Bilan mensuel":
         "Bilan individuel de l'élève"
     )
 
-
-    # --------------------------------------------------------
-    # ÉLÈVE
-    # --------------------------------------------------------
-
     eleve_bilan = st.selectbox(
         "Élève",
         ELEVES,
         key="bilan_eleve"
     )
-
-
-    # --------------------------------------------------------
-    # MOIS
-    # --------------------------------------------------------
 
     mois_noms = [
         "Janvier",
@@ -958,14 +801,12 @@ elif page == "📊 Bilan mensuel":
         "Décembre"
     ]
 
-
     mois = st.selectbox(
         "Mois",
         range(1, 13),
         format_func=lambda x: mois_noms[x - 1],
         key="bilan_mois"
     )
-
 
     annee = st.number_input(
         "Année",
@@ -975,13 +816,7 @@ elif page == "📊 Bilan mensuel":
         step=1
     )
 
-
-    # --------------------------------------------------------
-    # LECTURE
-    # --------------------------------------------------------
-
     fichier = "seances.csv"
-
 
     if not os.path.exists(fichier):
 
@@ -991,9 +826,7 @@ elif page == "📊 Bilan mensuel":
 
         st.stop()
 
-
     df = pd.read_csv(fichier)
-
 
     if len(df) == 0:
 
@@ -1003,54 +836,38 @@ elif page == "📊 Bilan mensuel":
 
         st.stop()
 
-
-    # --------------------------------------------------------
-    # DATE
-    # --------------------------------------------------------
-
     df["date"] = pd.to_datetime(
         df["date"],
         errors="coerce"
     )
-
-
-    # --------------------------------------------------------
-    # DURÉE
-    # --------------------------------------------------------
 
     if "duree_minutes" not in df.columns:
 
         def calculer_duree(ligne):
 
             try:
-
                 debut = datetime.strptime(
                     str(ligne["heure_debut"]),
                     "%H:%M:%S"
                 )
 
             except:
-
                 debut = datetime.strptime(
                     str(ligne["heure_debut"]),
                     "%H:%M"
                 )
-
 
             try:
-
                 fin = datetime.strptime(
                     str(ligne["heure_fin"]),
                     "%H:%M:%S"
                 )
 
             except:
-
                 fin = datetime.strptime(
                     str(ligne["heure_fin"]),
                     "%H:%M"
                 )
-
 
             return (
                 fin.hour * 60
@@ -1059,12 +876,10 @@ elif page == "📊 Bilan mensuel":
                 - debut.minute
             )
 
-
         df["duree_minutes"] = df.apply(
             calculer_duree,
             axis=1
         )
-
 
     else:
 
@@ -1072,11 +887,6 @@ elif page == "📊 Bilan mensuel":
             df["duree_minutes"],
             errors="coerce"
         )
-
-
-    # --------------------------------------------------------
-    # FILTRE
-    # --------------------------------------------------------
 
     df_bilan = df[
         (df["eleve"] == eleve_bilan)
@@ -1086,15 +896,12 @@ elif page == "📊 Bilan mensuel":
         (df["date"].dt.year == annee)
     ]
 
-
     mois_nom = mois_noms[mois - 1]
-
 
     st.markdown(
         f"## 📊 Bilan de {eleve_bilan} "
         f"— {mois_nom} {annee}"
     )
-
 
     if len(df_bilan) == 0:
 
@@ -1104,11 +911,6 @@ elif page == "📊 Bilan mensuel":
         )
 
         st.stop()
-
-
-    # --------------------------------------------------------
-    # CALCUL
-    # --------------------------------------------------------
 
     nombre_seances = len(df_bilan)
 
@@ -1124,21 +926,11 @@ elif page == "📊 Bilan mensuel":
         total_minutes / nombre_seances
     )
 
-
-    # --------------------------------------------------------
-    # PRÉSENTIEL
-    # --------------------------------------------------------
-
     minutes_presentiel = int(
         df_bilan[
             df_bilan["mode"] == "Présentiel"
         ]["duree_minutes"].sum()
     )
-
-
-    # --------------------------------------------------------
-    # DISTANCIEL
-    # --------------------------------------------------------
 
     minutes_distanciel = int(
         df_bilan[
@@ -1146,46 +938,29 @@ elif page == "📊 Bilan mensuel":
         ]["duree_minutes"].sum()
     )
 
-
-    # --------------------------------------------------------
-    # STATISTIQUES
-    # --------------------------------------------------------
-
     col1, col2, col3 = st.columns(3)
 
-
     with col1:
-
         st.metric(
             "Nombre de séances",
             nombre_seances
         )
 
-
     with col2:
-
         st.metric(
             "Heures travaillées",
             f"{heures} h {minutes:02d}"
         )
 
-
     with col3:
-
         st.metric(
             "Durée moyenne",
             f"{moyenne} min"
         )
 
-
-    # --------------------------------------------------------
-    # MODES
-    # --------------------------------------------------------
-
     st.subheader(
         "🖥️ Mode des séances"
     )
-
 
     st.write(
         f"🏫 Présentiel : "
@@ -1193,25 +968,17 @@ elif page == "📊 Bilan mensuel":
         f"{minutes_presentiel % 60:02d}"
     )
 
-
     st.write(
         f"💻 Distanciel : "
         f"{minutes_distanciel // 60} h "
         f"{minutes_distanciel % 60:02d}"
     )
 
-
-    # --------------------------------------------------------
-    # DISCIPLINES
-    # --------------------------------------------------------
-
     st.subheader(
         "📚 Disciplines travaillées"
     )
 
-
     toutes_disciplines = []
-
 
     for valeur in df_bilan[
         "disciplines"
@@ -1224,18 +991,15 @@ elif page == "📊 Bilan mensuel":
             discipline = discipline.strip()
 
             if discipline:
-
                 toutes_disciplines.append(
                     discipline
                 )
-
 
     if toutes_disciplines:
 
         compteur = pd.Series(
             toutes_disciplines
         ).value_counts()
-
 
         for discipline, nombre in compteur.items():
 
@@ -1244,18 +1008,11 @@ elif page == "📊 Bilan mensuel":
                 f"{nombre} séance(s)"
             )
 
-
-    # --------------------------------------------------------
-    # OBSERVATIONS
-    # --------------------------------------------------------
-
     st.subheader(
         "💬 Bilan comportement"
     )
 
-
     toutes_observations = []
-
 
     for valeur in df_bilan[
         "observations"
@@ -1268,18 +1025,15 @@ elif page == "📊 Bilan mensuel":
             observation = observation.strip()
 
             if observation:
-
                 toutes_observations.append(
                     observation
                 )
-
 
     if toutes_observations:
 
         compteur_observations = pd.Series(
             toutes_observations
         ).value_counts()
-
 
         for observation, nombre in (
             compteur_observations.items()
@@ -1290,22 +1044,15 @@ elif page == "📊 Bilan mensuel":
                 f"{nombre}"
             )
 
-
     else:
 
         st.write(
             "Aucune observation enregistrée."
         )
 
-
-    # --------------------------------------------------------
-    # BILAN PERSONNALISÉ
-    # --------------------------------------------------------
-
     st.subheader(
         "📝 Bilan personnalisé"
     )
-
 
     bilan_personnalise = st.text_area(
         "Rédiger le bilan du mois",
@@ -1315,7 +1062,6 @@ elif page == "📊 Bilan mensuel":
             "progrès ce mois-ci..."
         )
     )
-
 
     if st.button(
         "💾 Enregistrer le bilan",
@@ -1336,7 +1082,7 @@ elif page == "🧾 Facturation":
     st.title("🧾 Facturation")
 
     st.subheader(
-        "Facture mensuelle"
+        "Facture"
     )
 
 
@@ -1352,45 +1098,165 @@ elif page == "🧾 Facturation":
 
 
     # ========================================================
-    # MOIS
+    # TYPE DE PÉRIODE
     # ========================================================
 
-    mois_noms = [
-        "Janvier",
-        "Février",
-        "Mars",
-        "Avril",
-        "Mai",
-        "Juin",
-        "Juillet",
-        "Août",
-        "Septembre",
-        "Octobre",
-        "Novembre",
-        "Décembre"
-    ]
-
-
-    mois_facture = st.selectbox(
-        "Mois",
-        range(1, 13),
-        format_func=lambda x: mois_noms[x - 1],
-        key="facture_mois"
+    type_periode = st.selectbox(
+        "Période de facturation",
+        [
+            "Mensuelle",
+            "Hebdomadaire",
+            "Personnalisée",
+            "Toutes les séances"
+        ],
+        key="type_periode"
     )
 
 
+    aujourd_hui = date.today()
+
+
     # ========================================================
-    # ANNÉE
+    # PÉRIODE MENSUELLE
     # ========================================================
 
-    annee_facture = st.number_input(
-        "Année",
-        min_value=2020,
-        max_value=2100,
-        value=2026,
-        step=1,
-        key="facture_annee"
-    )
+    if type_periode == "Mensuelle":
+
+        mois_noms = [
+            "Janvier",
+            "Février",
+            "Mars",
+            "Avril",
+            "Mai",
+            "Juin",
+            "Juillet",
+            "Août",
+            "Septembre",
+            "Octobre",
+            "Novembre",
+            "Décembre"
+        ]
+
+        mois_facture = st.selectbox(
+            "Mois",
+            range(1, 13),
+            format_func=lambda x: mois_noms[x - 1]
+        )
+
+        annee_facture = st.number_input(
+            "Année",
+            min_value=2020,
+            max_value=2100,
+            value=aujourd_hui.year,
+            step=1
+        )
+
+        date_debut = date(
+            int(annee_facture),
+            int(mois_facture),
+            1
+        )
+
+        if mois_facture == 12:
+
+            date_fin = date(
+                int(annee_facture) + 1,
+                1,
+                1
+            ) - timedelta(days=1)
+
+        else:
+
+            date_fin = date(
+                int(annee_facture),
+                int(mois_facture) + 1,
+                1
+            ) - timedelta(days=1)
+
+
+    # ========================================================
+    # PÉRIODE HEBDOMADAIRE
+    # ========================================================
+
+    elif type_periode == "Hebdomadaire":
+
+        date_selection = st.date_input(
+            "Choisir un jour de la semaine",
+            value=aujourd_hui
+        )
+
+        lundi = (
+            date_selection
+            - timedelta(
+                days=date_selection.weekday()
+            )
+        )
+
+        date_debut = lundi
+
+        date_fin = lundi + timedelta(
+            days=6
+        )
+
+
+        st.info(
+            f"Période sélectionnée : "
+            f"{date_debut.strftime('%d/%m/%Y')} "
+            f"→ "
+            f"{date_fin.strftime('%d/%m/%Y')}"
+        )
+
+
+    # ========================================================
+    # PÉRIODE PERSONNALISÉE
+    # ========================================================
+
+    elif type_periode == "Personnalisée":
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            date_debut = st.date_input(
+                "Date de début",
+                value=aujourd_hui
+            )
+
+        with col2:
+
+            date_fin = st.date_input(
+                "Date de fin",
+                value=aujourd_hui
+            )
+
+
+        if date_fin < date_debut:
+
+            st.error(
+                "❌ La date de fin doit être "
+                "postérieure ou égale à la date de début."
+            )
+
+            st.stop()
+
+
+    # ========================================================
+    # TOUTES LES SÉANCES
+    # ========================================================
+
+    else:
+
+        date_debut = date(
+            2000,
+            1,
+            1
+        )
+
+        date_fin = date(
+            2100,
+            12,
+            31
+        )
 
 
     # ========================================================
@@ -1407,7 +1273,7 @@ elif page == "🧾 Facturation":
 
 
     # ========================================================
-    # LECTURE DU CSV
+    # LECTURE CSV
     # ========================================================
 
     fichier = "seances.csv"
@@ -1447,7 +1313,7 @@ elif page == "🧾 Facturation":
 
 
     # ========================================================
-    # CALCUL DE LA DURÉE
+    # DURÉE
     # ========================================================
 
     if "duree_minutes" not in df_facture.columns:
@@ -1506,47 +1372,52 @@ elif page == "🧾 Facturation":
 
 
     # ========================================================
-    # FILTRE ÉLÈVE + MOIS
+    # FILTRE
     # ========================================================
 
-    df_mois = df_facture[
+    df_facture = df_facture[
         (df_facture["eleve"] == eleve_facture)
         &
-        (df_facture["date"].dt.month == mois_facture)
+        (
+            df_facture["date"].dt.date
+            >= date_debut
+        )
         &
-        (df_facture["date"].dt.year == annee_facture)
-    ]
+        (
+            df_facture["date"].dt.date
+            <= date_fin
+        )
+    ].copy()
 
 
     # ========================================================
     # AUCUNE SÉANCE
     # ========================================================
 
-    if len(df_mois) == 0:
+    if len(df_facture) == 0:
 
         st.warning(
             "Aucune séance trouvée pour "
-            f"{eleve_facture} en "
-            f"{mois_noms[mois_facture - 1]} "
-            f"{annee_facture}."
+            f"{eleve_facture} entre "
+            f"{date_debut.strftime('%d/%m/%Y')} "
+            f"et "
+            f"{date_fin.strftime('%d/%m/%Y')}."
         )
 
         st.stop()
 
 
     # ========================================================
-    # CALCUL DES HEURES
+    # CALCUL
     # ========================================================
 
     total_minutes = int(
-        df_mois["duree_minutes"].sum()
+        df_facture["duree_minutes"].sum()
     )
-
 
     total_heures = (
         total_minutes / 60
     )
-
 
     heures_entieres = (
         total_minutes // 60
@@ -1555,11 +1426,6 @@ elif page == "🧾 Facturation":
     minutes_restantes = (
         total_minutes % 60
     )
-
-
-    # ========================================================
-    # CALCUL DU TOTAL
-    # ========================================================
 
     montant_total = (
         total_heures * tarif_horaire
@@ -1576,6 +1442,13 @@ elif page == "🧾 Facturation":
         f"🧾 Facture — {eleve_facture}"
     )
 
+    st.write(
+        f"📅 **Période :** "
+        f"{date_debut.strftime('%d/%m/%Y')} "
+        f"→ "
+        f"{date_fin.strftime('%d/%m/%Y')}"
+    )
+
 
     col1, col2, col3 = st.columns(3)
 
@@ -1584,7 +1457,7 @@ elif page == "🧾 Facturation":
 
         st.metric(
             "Nombre de séances",
-            len(df_mois)
+            len(df_facture)
         )
 
 
@@ -1606,7 +1479,7 @@ elif page == "🧾 Facturation":
 
 
     # ========================================================
-    # DÉTAIL
+    # DÉTAIL DES SÉANCES
     # ========================================================
 
     st.subheader(
@@ -1614,7 +1487,7 @@ elif page == "🧾 Facturation":
     )
 
 
-    tableau_facture = df_mois[
+    tableau = df_facture[
         [
             "date",
             "heure_debut",
@@ -1626,14 +1499,14 @@ elif page == "🧾 Facturation":
     ].copy()
 
 
-    tableau_facture["date"] = (
-        tableau_facture["date"]
+    tableau["date"] = (
+        tableau["date"]
         .dt.strftime("%d/%m/%Y")
     )
 
 
-    tableau_facture["Durée"] = (
-        tableau_facture["duree_minutes"]
+    tableau["Durée"] = (
+        tableau["duree_minutes"]
         .apply(
             lambda x:
             f"{int(x // 60)} h "
@@ -1642,7 +1515,7 @@ elif page == "🧾 Facturation":
     )
 
 
-    tableau_facture = tableau_facture[
+    tableau = tableau[
         [
             "date",
             "heure_debut",
@@ -1654,7 +1527,7 @@ elif page == "🧾 Facturation":
     ]
 
 
-    tableau_facture.columns = [
+    tableau.columns = [
         "Date",
         "Début",
         "Fin",
@@ -1665,7 +1538,7 @@ elif page == "🧾 Facturation":
 
 
     st.dataframe(
-        tableau_facture,
+        tableau,
         use_container_width=True,
         hide_index=True
     )
@@ -1683,8 +1556,9 @@ elif page == "🧾 Facturation":
 
     st.write(
         f"**Période :** "
-        f"{mois_noms[mois_facture - 1]} "
-        f"{annee_facture}"
+        f"{date_debut.strftime('%d/%m/%Y')} "
+        f"→ "
+        f"{date_fin.strftime('%d/%m/%Y')}"
     )
 
     st.write(
@@ -1705,13 +1579,13 @@ elif page == "🧾 Facturation":
 
 
     # ========================================================
-    # GÉNÉRATION DU PDF
+    # GÉNÉRATION PDF
     # ========================================================
 
     def generer_facture_pdf(
         eleve,
-        mois,
-        annee,
+        date_debut,
+        date_fin,
         df_seances,
         tarif,
         montant
@@ -1732,17 +1606,12 @@ elif page == "🧾 Facturation":
 
         styles = getSampleStyleSheet()
 
-
         titre = styles["Title"]
-
         titre.alignment = TA_CENTER
-
 
         normal = styles["Normal"]
 
-
         total_style = styles["Heading2"]
-
         total_style.alignment = TA_RIGHT
 
 
@@ -1760,7 +1629,6 @@ elif page == "🧾 Facturation":
             )
         )
 
-
         elements.append(
             Paragraph(
                 "Cours particuliers",
@@ -1768,18 +1636,17 @@ elif page == "🧾 Facturation":
             )
         )
 
-
         elements.append(
             Spacer(1, 25)
         )
 
 
         # ----------------------------------------------------
-        # NUMÉRO
+        # NUMÉRO FACTURE
         # ----------------------------------------------------
 
         numero_facture = (
-            f"{annee}-{mois:02d}-{eleve}"
+            datetime.now().strftime("%Y%m%d%H%M%S")
         )
 
 
@@ -1790,7 +1657,6 @@ elif page == "🧾 Facturation":
                 normal
             )
         )
-
 
         elements.append(
             Spacer(1, 10)
@@ -1808,8 +1674,9 @@ elif page == "🧾 Facturation":
         elements.append(
             Paragraph(
                 f"<b>Période :</b> "
-                f"{mois_noms[mois - 1]} "
-                f"{annee}",
+                f"{date_debut.strftime('%d/%m/%Y')} "
+                f"au "
+                f"{date_fin.strftime('%d/%m/%Y')}",
                 normal
             )
         )
@@ -1841,6 +1708,7 @@ elif page == "🧾 Facturation":
                 ligne["duree_minutes"]
             )
 
+
             duree_texte = (
                 f"{duree // 60} h "
                 f"{duree % 60:02d}"
@@ -1848,14 +1716,8 @@ elif page == "🧾 Facturation":
 
 
             date_texte = (
-                ligne["date"]
-                .strftime("%d/%m/%Y")
-                if hasattr(
-                    ligne["date"],
-                    "strftime"
-                )
-                else str(
-                    ligne["date"]
+                ligne["date"].strftime(
+                    "%d/%m/%Y"
                 )
             )
 
@@ -1863,33 +1725,32 @@ elif page == "🧾 Facturation":
             donnees.append(
                 [
                     date_texte,
-                    str(
-                        ligne["heure_debut"]
-                    ),
-                    str(
-                        ligne["heure_fin"]
-                    ),
+                    str(ligne["heure_debut"]),
+                    str(ligne["heure_fin"]),
                     duree_texte,
-                    str(
-                        ligne["mode"]
-                    )
+                    str(ligne["mode"])
                 ]
             )
 
 
-        # Ligne total
+        total_texte = (
+            f"{int(total_minutes // 60)} h "
+            f"{int(total_minutes % 60):02d}"
+        )
+
+
         donnees.append(
             [
                 "",
                 "",
                 "TOTAL",
-                f"{total_heures:.2f} h",
+                total_texte,
                 ""
             ]
         )
 
 
-        tableau = Table(
+        tableau_pdf = Table(
             donnees,
             colWidths=[
                 75,
@@ -1901,7 +1762,7 @@ elif page == "🧾 Facturation":
         )
 
 
-        tableau.setStyle(
+        tableau_pdf.setStyle(
             TableStyle([
                 (
                     "BACKGROUND",
@@ -1964,7 +1825,7 @@ elif page == "🧾 Facturation":
 
 
         elements.append(
-            tableau
+            tableau_pdf
         )
 
 
@@ -1972,10 +1833,6 @@ elif page == "🧾 Facturation":
             Spacer(1, 25)
         )
 
-
-        # ----------------------------------------------------
-        # TARIF
-        # ----------------------------------------------------
 
         elements.append(
             Paragraph(
@@ -1990,10 +1847,6 @@ elif page == "🧾 Facturation":
             Spacer(1, 10)
         )
 
-
-        # ----------------------------------------------------
-        # TOTAL
-        # ----------------------------------------------------
 
         elements.append(
             Paragraph(
@@ -2024,19 +1877,18 @@ elif page == "🧾 Facturation":
 
         buffer.seek(0)
 
-
         return buffer
 
 
     # ========================================================
-    # BOUTON PDF
+    # PDF
     # ========================================================
 
     pdf = generer_facture_pdf(
         eleve_facture,
-        mois_facture,
-        annee_facture,
-        df_mois,
+        date_debut,
+        date_fin,
+        df_facture,
         tarif_horaire,
         montant_total
     )
@@ -2048,8 +1900,8 @@ elif page == "🧾 Facturation":
         file_name=(
             f"facture_"
             f"{eleve_facture}_"
-            f"{annee_facture}_"
-            f"{mois_facture:02d}.pdf"
+            f"{date_debut.strftime('%Y%m%d')}_"
+            f"{date_fin.strftime('%Y%m%d')}.pdf"
         ),
         mime="application/pdf"
     )
