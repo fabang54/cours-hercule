@@ -1,20 +1,28 @@
 import streamlit as st
 import pandas as pd
-import os
-from datetime import datetime, date, timedelta
-from io import BytesIO
+from supabase import create_client
+from datetime import date, time, datetime
 
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Spacer,
-    Table,
-    TableStyle
+
+# ============================================================
+# CONFIGURATION
+# ============================================================
+
+st.set_page_config(
+    page_title="Cours Hercule",
+    page_icon="📚",
+    layout="wide"
 )
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+
+
+# ============================================================
+# CONNEXION SUPABASE
+# ============================================================
+
+supabase = create_client(
+    st.secrets["SUPABASE_URL"],
+    st.secrets["SUPABASE_KEY"]
+)
 
 
 # ============================================================
@@ -49,7 +57,7 @@ DISCIPLINES = [
     "Français",
     "Anglais",
     "Technologie",
-    "Culture générale"
+    "Cultures générales"
 ]
 
 CONTENUS = [
@@ -61,7 +69,8 @@ CONTENUS = [
     "Proportionnalité",
     "Géométrie",
     "Statistiques",
-    "Probabilités"
+    "Probabilités",
+    "Autre"
 ]
 
 TRAVAUX = [
@@ -70,7 +79,8 @@ TRAVAUX = [
     "Revoir le cours",
     "Apprendre le cours",
     "Préparer le prochain cours",
-    "Aucun"
+    "Aucun",
+    "Autre"
 ]
 
 OBSERVATIONS = [
@@ -80,1828 +90,943 @@ OBSERVATIONS = [
     "Difficultés importantes",
     "Bonne participation",
     "Très bonne séance",
-    "Progrès constatés"
+    "Progrès constatés",
+    "Autre"
 ]
 
 
 # ============================================================
-# MENU ESPACE ENSEIGNANT
+# TITRE
 # ============================================================
 
-page = st.sidebar.radio(
-    "Espace enseignant",
+st.title("📚 Cours Hercule")
+
+
+# ============================================================
+# MENU
+# ============================================================
+
+menu = st.sidebar.radio(
+    "Menu",
     [
         "📚 Gestion des séances",
         "📖 Cahier de texte",
-        "📊 Bilan mensuel",
+        "✏️ Modifier une séance",
+        "📊 Bilan",
         "🧾 Facturation"
     ]
 )
 
 
 # ============================================================
-# COMPTEUR FORMULAIRE
+# RÉCUPÉRATION DES SÉANCES
 # ============================================================
 
-if "formulaire_id" not in st.session_state:
-    st.session_state.formulaire_id = 0
+def recuperer_seances():
 
-
-# ============================================================
-# PAGE : GESTION DES SÉANCES
-# ============================================================
-
-if page == "📚 Gestion des séances":
-
-    st.title("📚 Gestion des séances")
-
-    operation = st.radio(
-        "Action",
-        [
-            "➕ Nouvelle séance",
-            "✏️ Modifier une séance"
-        ],
-        horizontal=True
+    resultat = (
+        supabase
+        .table("seances")
+        .select("*")
+        .order("date", desc=True)
+        .execute()
     )
 
+    donnees = resultat.data
 
-    # ========================================================
-    # NOUVELLE SÉANCE
-    # ========================================================
+    if not donnees:
+        return pd.DataFrame()
 
-    if operation == "➕ Nouvelle séance":
-
-        st.subheader("Nouvelle séance")
-
-        f = st.session_state.formulaire_id
-
-        eleve = st.selectbox(
-            "Élève",
-            ELEVES,
-            key=f"eleve_{f}"
-        )
-
-        date_seance = st.date_input(
-            "Date de la séance",
-            key=f"date_{f}"
-        )
-
-        heure_debut = st.time_input(
-            "Heure de début",
-            key=f"heure_debut_{f}"
-        )
-
-        heure_fin = st.time_input(
-            "Heure de fin",
-            key=f"heure_fin_{f}"
-        )
-
-        mode = st.selectbox(
-            "Mode",
-            [
-                "Présentiel",
-                "Distanciel"
-            ],
-            key=f"mode_{f}"
-        )
-
-        discipline = st.multiselect(
-            "Discipline(s)",
-            DISCIPLINES,
-            key=f"discipline_{f}"
-        )
-
-        contenu = st.multiselect(
-            "Contenu de la séance",
-            CONTENUS,
-            key=f"contenu_{f}"
-        )
-
-        contenu_manuel = st.text_input(
-            "Ajouter un contenu personnalisé (facultatif)",
-            key=f"contenu_manuel_{f}"
-        )
-
-        travail = st.multiselect(
-            "Travail à faire",
-            TRAVAUX,
-            key=f"travail_{f}"
-        )
-
-        observation = st.multiselect(
-            "Observations",
-            OBSERVATIONS,
-            key=f"observation_{f}"
-        )
-
-        observation_manuel = st.text_input(
-            "Ajouter une observation personnalisée (facultatif)",
-            key=f"observation_manuel_{f}"
-        )
-
-
-        if st.button(
-            "💾 Enregistrer la séance",
-            key=f"enregistrer_{f}"
-        ):
-
-            debut_minutes = (
-                heure_debut.hour * 60
-                + heure_debut.minute
-            )
-
-            fin_minutes = (
-                heure_fin.hour * 60
-                + heure_fin.minute
-            )
-
-            duree_minutes = (
-                fin_minutes - debut_minutes
-            )
-
-            if duree_minutes <= 0:
-
-                st.error(
-                    "❌ L'heure de fin doit être "
-                    "supérieure à l'heure de début."
-                )
-
-                st.stop()
-
-
-            contenu_final = contenu.copy()
-
-            if contenu_manuel.strip():
-                contenu_final.append(
-                    contenu_manuel.strip()
-                )
-
-
-            observation_finale = observation.copy()
-
-            if observation_manuel.strip():
-                observation_finale.append(
-                    observation_manuel.strip()
-                )
-
-
-            nouvelle_seance = pd.DataFrame([{
-
-                "eleve": eleve,
-                "date": date_seance,
-                "heure_debut": heure_debut,
-                "heure_fin": heure_fin,
-                "duree_minutes": duree_minutes,
-                "mode": mode,
-                "disciplines": ", ".join(
-                    discipline
-                ),
-                "contenu": ", ".join(
-                    contenu_final
-                ),
-                "travail": ", ".join(
-                    travail
-                ),
-                "observations": ", ".join(
-                    observation_finale
-                )
-            }])
-
-
-            fichier = "seances.csv"
-
-            if os.path.exists(fichier):
-
-                nouvelle_seance.to_csv(
-                    fichier,
-                    mode="a",
-                    header=False,
-                    index=False
-                )
-
-            else:
-
-                nouvelle_seance.to_csv(
-                    fichier,
-                    index=False
-                )
-
-
-            st.success(
-                "✅ Séance enregistrée !"
-            )
-
-            st.session_state.formulaire_id += 1
-
-            st.rerun()
-
-
-    # ========================================================
-    # MODIFIER UNE SÉANCE
-    # ========================================================
-
-    elif operation == "✏️ Modifier une séance":
-
-        st.subheader("✏️ Modifier une séance")
-
-        fichier = "seances.csv"
-
-        if not os.path.exists(fichier):
-
-            st.info(
-                "Aucune séance enregistrée."
-            )
-
-            st.stop()
-
-
-        df = pd.read_csv(fichier)
-
-        if len(df) == 0:
-
-            st.info(
-                "Aucune séance enregistrée."
-            )
-
-            st.stop()
-
-
-        liste_seances = []
-
-        for index, ligne in df.iterrows():
-
-            texte = (
-                f"{index + 1} — "
-                f"{ligne.get('date', '')} — "
-                f"{ligne.get('eleve', '')} — "
-                f"{ligne.get('heure_debut', '')} → "
-                f"{ligne.get('heure_fin', '')} — "
-                f"{ligne.get('disciplines', '')}"
-            )
-
-            liste_seances.append(texte)
-
-
-        choix = st.selectbox(
-            "Séance à modifier",
-            liste_seances
-        )
-
-        index = liste_seances.index(choix)
-
-        ancienne_seance = df.iloc[index]
-
-
-        eleve_modif = st.selectbox(
-            "Élève",
-            ELEVES,
-            index=(
-                ELEVES.index(
-                    ancienne_seance["eleve"]
-                )
-                if ancienne_seance["eleve"] in ELEVES
-                else 0
-            )
-        )
-
-
-        try:
-
-            date_modif = pd.to_datetime(
-                ancienne_seance["date"]
-            ).date()
-
-        except:
-
-            date_modif = datetime.now().date()
-
-
-        date_modif = st.date_input(
-            "Date de la séance",
-            value=date_modif
-        )
-
-
-        try:
-
-            heure_debut_modif = datetime.strptime(
-                str(ancienne_seance["heure_debut"]),
-                "%H:%M:%S"
-            ).time()
-
-        except:
-
-            try:
-
-                heure_debut_modif = datetime.strptime(
-                    str(ancienne_seance["heure_debut"]),
-                    "%H:%M"
-                ).time()
-
-            except:
-
-                heure_debut_modif = datetime.now().time()
-
-
-        heure_debut_modif = st.time_input(
-            "Heure de début",
-            value=heure_debut_modif
-        )
-
-
-        try:
-
-            heure_fin_modif = datetime.strptime(
-                str(ancienne_seance["heure_fin"]),
-                "%H:%M:%S"
-            ).time()
-
-        except:
-
-            try:
-
-                heure_fin_modif = datetime.strptime(
-                    str(ancienne_seance["heure_fin"]),
-                    "%H:%M"
-                ).time()
-
-            except:
-
-                heure_fin_modif = datetime.now().time()
-
-
-        heure_fin_modif = st.time_input(
-            "Heure de fin",
-            value=heure_fin_modif
-        )
-
-
-        modes = [
-            "Présentiel",
-            "Distanciel"
-        ]
-
-        ancien_mode = ancienne_seance.get(
-            "mode",
-            "Présentiel"
-        )
-
-        mode_modif = st.selectbox(
-            "Mode",
-            modes,
-            index=(
-                modes.index(ancien_mode)
-                if ancien_mode in modes
-                else 0
-            )
-        )
-
-
-        anciennes_disciplines = str(
-            ancienne_seance.get(
-                "disciplines",
-                ""
-            )
-        )
-
-        disciplines_selectionnees = [
-            x.strip()
-            for x in anciennes_disciplines.split(",")
-            if x.strip() in DISCIPLINES
-        ]
-
-        discipline_modif = st.multiselect(
-            "Discipline(s)",
-            DISCIPLINES,
-            default=disciplines_selectionnees
-        )
-
-
-        ancien_contenu = str(
-            ancienne_seance.get(
-                "contenu",
-                ""
-            )
-        )
-
-        contenus_selectionnes = [
-            x.strip()
-            for x in ancien_contenu.split(",")
-            if x.strip() in CONTENUS
-        ]
-
-        contenu_modif = st.multiselect(
-            "Contenu de la séance",
-            CONTENUS,
-            default=contenus_selectionnes
-        )
-
-
-        contenu_personnalise = [
-            x.strip()
-            for x in ancien_contenu.split(",")
-            if x.strip()
-            and x.strip() not in CONTENUS
-        ]
-
-        contenu_manuel_modif = st.text_input(
-            "Contenu personnalisé",
-            value=", ".join(
-                contenu_personnalise
-            )
-        )
-
-
-        ancien_travail = str(
-            ancienne_seance.get(
-                "travail",
-                ""
-            )
-        )
-
-        travail_selectionne = [
-            x.strip()
-            for x in ancien_travail.split(",")
-            if x.strip() in TRAVAUX
-        ]
-
-        travail_modif = st.multiselect(
-            "Travail à faire",
-            TRAVAUX,
-            default=travail_selectionne
-        )
-
-
-        anciennes_observations = str(
-            ancienne_seance.get(
-                "observations",
-                ""
-            )
-        )
-
-        observations_selectionnees = [
-            x.strip()
-            for x in anciennes_observations.split(",")
-            if x.strip() in OBSERVATIONS
-        ]
-
-        observation_modif = st.multiselect(
-            "Observations",
-            OBSERVATIONS,
-            default=observations_selectionnees
-        )
-
-
-        observations_personnalisees = [
-            x.strip()
-            for x in anciennes_observations.split(",")
-            if x.strip()
-            and x.strip() not in OBSERVATIONS
-        ]
-
-        observation_manuel_modif = st.text_input(
-            "Observation personnalisée",
-            value=", ".join(
-                observations_personnalisees
-            )
-        )
-
-
-        if st.button(
-            "💾 Enregistrer les modifications"
-        ):
-
-            debut_minutes = (
-                heure_debut_modif.hour * 60
-                + heure_debut_modif.minute
-            )
-
-            fin_minutes = (
-                heure_fin_modif.hour * 60
-                + heure_fin_modif.minute
-            )
-
-            duree_minutes = (
-                fin_minutes - debut_minutes
-            )
-
-            if duree_minutes <= 0:
-
-                st.error(
-                    "❌ L'heure de fin doit être "
-                    "supérieure à l'heure de début."
-                )
-
-                st.stop()
-
-
-            contenu_final_modif = (
-                contenu_modif.copy()
-            )
-
-            if contenu_manuel_modif.strip():
-                contenu_final_modif.append(
-                    contenu_manuel_modif.strip()
-                )
-
-
-            observation_finale_modif = (
-                observation_modif.copy()
-            )
-
-            if observation_manuel_modif.strip():
-                observation_finale_modif.append(
-                    observation_manuel_modif.strip()
-                )
-
-
-            df.at[
-                index,
-                "eleve"
-            ] = eleve_modif
-
-            df.at[
-                index,
-                "date"
-            ] = date_modif
-
-            df.at[
-                index,
-                "heure_debut"
-            ] = heure_debut_modif
-
-            df.at[
-                index,
-                "heure_fin"
-            ] = heure_fin_modif
-
-            df.at[
-                index,
-                "duree_minutes"
-            ] = duree_minutes
-
-            df.at[
-                index,
-                "mode"
-            ] = mode_modif
-
-            df.at[
-                index,
-                "disciplines"
-            ] = ", ".join(
-                discipline_modif
-            )
-
-            df.at[
-                index,
-                "contenu"
-            ] = ", ".join(
-                contenu_final_modif
-            )
-
-            df.at[
-                index,
-                "travail"
-            ] = ", ".join(
-                travail_modif
-            )
-
-            df.at[
-                index,
-                "observations"
-            ] = ", ".join(
-                observation_finale_modif
-            )
-
-
-            df.to_csv(
-                fichier,
-                index=False
-            )
-
-            st.success(
-                "✅ Séance modifiée avec succès !"
-            )
-
-            st.rerun()
+    return pd.DataFrame(donnees)
 
 
 # ============================================================
-# PAGE : CAHIER DE TEXTE
+# GESTION DES SÉANCES
 # ============================================================
 
-elif page == "📖 Cahier de texte":
+if menu == "📚 Gestion des séances":
 
-    st.title("📖 Cahier de texte")
+    st.header("📚 Gestion des séances")
 
-    st.subheader("Suivi des séances")
-
-    eleve_cahier = st.selectbox(
-        "Élève",
-        ELEVES,
-        key="cahier_eleve"
-    )
-
-    fichier = "seances.csv"
-
-    if os.path.exists(fichier):
-
-        df = pd.read_csv(fichier)
-
-        df_eleve = df[
-            df["eleve"] == eleve_cahier
-        ]
-
-        if len(df_eleve) > 0:
-
-            st.write(
-                f"📖 **Cahier de texte de "
-                f"{eleve_cahier}**"
-            )
-
-            df_eleve = df_eleve.iloc[::-1]
-
-            for _, seance in df_eleve.iterrows():
-
-                st.markdown("---")
-
-                st.subheader(
-                    f"📅 {seance['date']}"
-                )
-
-                st.write(
-                    f"⏰ {seance['heure_debut']} → "
-                    f"{seance['heure_fin']}"
-                )
-
-                st.write(
-                    f"📚 **Discipline(s) :** "
-                    f"{seance['disciplines']}"
-                )
-
-                st.write(
-                    f"📖 **Contenu :** "
-                    f"{seance['contenu']}"
-                )
-
-                st.write(
-                    f"📝 **Travail à faire :** "
-                    f"{seance['travail']}"
-                )
-
-                st.write(
-                    f"💬 **Observations :** "
-                    f"{seance['observations']}"
-                )
-
-        else:
-
-            st.info(
-                f"Aucune séance enregistrée "
-                f"pour {eleve_cahier}."
-            )
-
-    else:
-
-        st.info(
-            "Aucune séance enregistrée."
-        )
-
-
-# ============================================================
-# PAGE : BILAN MENSUEL
-# ============================================================
-
-elif page == "📊 Bilan mensuel":
-
-    st.title("📊 Bilan mensuel")
-
-    st.subheader(
-        "Bilan individuel de l'élève"
-    )
-
-    eleve_bilan = st.selectbox(
-        "Élève",
-        ELEVES,
-        key="bilan_eleve"
-    )
-
-    mois_noms = [
-        "Janvier",
-        "Février",
-        "Mars",
-        "Avril",
-        "Mai",
-        "Juin",
-        "Juillet",
-        "Août",
-        "Septembre",
-        "Octobre",
-        "Novembre",
-        "Décembre"
-    ]
-
-    mois = st.selectbox(
-        "Mois",
-        range(1, 13),
-        format_func=lambda x: mois_noms[x - 1],
-        key="bilan_mois"
-    )
-
-    annee = st.number_input(
-        "Année",
-        min_value=2020,
-        max_value=2100,
-        value=2026,
-        step=1
-    )
-
-    fichier = "seances.csv"
-
-    if not os.path.exists(fichier):
-
-        st.info(
-            "Aucune séance enregistrée."
-        )
-
-        st.stop()
-
-    df = pd.read_csv(fichier)
-
-    if len(df) == 0:
-
-        st.info(
-            "Aucune séance enregistrée."
-        )
-
-        st.stop()
-
-    df["date"] = pd.to_datetime(
-        df["date"],
-        errors="coerce"
-    )
-
-    if "duree_minutes" not in df.columns:
-
-        def calculer_duree(ligne):
-
-            try:
-                debut = datetime.strptime(
-                    str(ligne["heure_debut"]),
-                    "%H:%M:%S"
-                )
-
-            except:
-                debut = datetime.strptime(
-                    str(ligne["heure_debut"]),
-                    "%H:%M"
-                )
-
-            try:
-                fin = datetime.strptime(
-                    str(ligne["heure_fin"]),
-                    "%H:%M:%S"
-                )
-
-            except:
-                fin = datetime.strptime(
-                    str(ligne["heure_fin"]),
-                    "%H:%M"
-                )
-
-            return (
-                fin.hour * 60
-                + fin.minute
-                - debut.hour * 60
-                - debut.minute
-            )
-
-        df["duree_minutes"] = df.apply(
-            calculer_duree,
-            axis=1
-        )
-
-    else:
-
-        df["duree_minutes"] = pd.to_numeric(
-            df["duree_minutes"],
-            errors="coerce"
-        )
-
-    df_bilan = df[
-        (df["eleve"] == eleve_bilan)
-        &
-        (df["date"].dt.month == mois)
-        &
-        (df["date"].dt.year == annee)
-    ]
-
-    mois_nom = mois_noms[mois - 1]
-
-    st.markdown(
-        f"## 📊 Bilan de {eleve_bilan} "
-        f"— {mois_nom} {annee}"
-    )
-
-    if len(df_bilan) == 0:
-
-        st.warning(
-            "Aucune séance pour cet élève "
-            "durant cette période."
-        )
-
-        st.stop()
-
-    nombre_seances = len(df_bilan)
-
-    total_minutes = int(
-        df_bilan["duree_minutes"].sum()
-    )
-
-    heures = total_minutes // 60
-
-    minutes = total_minutes % 60
-
-    moyenne = round(
-        total_minutes / nombre_seances
-    )
-
-    minutes_presentiel = int(
-        df_bilan[
-            df_bilan["mode"] == "Présentiel"
-        ]["duree_minutes"].sum()
-    )
-
-    minutes_distanciel = int(
-        df_bilan[
-            df_bilan["mode"] == "Distanciel"
-        ]["duree_minutes"].sum()
-    )
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric(
-            "Nombre de séances",
-            nombre_seances
-        )
-
-    with col2:
-        st.metric(
-            "Heures travaillées",
-            f"{heures} h {minutes:02d}"
-        )
-
-    with col3:
-        st.metric(
-            "Durée moyenne",
-            f"{moyenne} min"
-        )
-
-    st.subheader(
-        "🖥️ Mode des séances"
-    )
-
-    st.write(
-        f"🏫 Présentiel : "
-        f"{minutes_presentiel // 60} h "
-        f"{minutes_presentiel % 60:02d}"
-    )
-
-    st.write(
-        f"💻 Distanciel : "
-        f"{minutes_distanciel // 60} h "
-        f"{minutes_distanciel % 60:02d}"
-    )
-
-    st.subheader(
-        "📚 Disciplines travaillées"
-    )
-
-    toutes_disciplines = []
-
-    for valeur in df_bilan[
-        "disciplines"
-    ].dropna():
-
-        for discipline in str(
-            valeur
-        ).split(","):
-
-            discipline = discipline.strip()
-
-            if discipline:
-                toutes_disciplines.append(
-                    discipline
-                )
-
-    if toutes_disciplines:
-
-        compteur = pd.Series(
-            toutes_disciplines
-        ).value_counts()
-
-        for discipline, nombre in compteur.items():
-
-            st.write(
-                f"• {discipline} : "
-                f"{nombre} séance(s)"
-            )
-
-    st.subheader(
-        "💬 Bilan comportement"
-    )
-
-    toutes_observations = []
-
-    for valeur in df_bilan[
-        "observations"
-    ].dropna():
-
-        for observation in str(
-            valeur
-        ).split(","):
-
-            observation = observation.strip()
-
-            if observation:
-                toutes_observations.append(
-                    observation
-                )
-
-    if toutes_observations:
-
-        compteur_observations = pd.Series(
-            toutes_observations
-        ).value_counts()
-
-        for observation, nombre in (
-            compteur_observations.items()
-        ):
-
-            st.write(
-                f"• {observation} : "
-                f"{nombre}"
-            )
-
-    else:
-
-        st.write(
-            "Aucune observation enregistrée."
-        )
-
-    st.subheader(
-        "📝 Bilan personnalisé"
-    )
-
-    bilan_personnalise = st.text_area(
-        "Rédiger le bilan du mois",
-        height=150,
-        placeholder=(
-            "Exemple : Nino a réalisé de bons "
-            "progrès ce mois-ci..."
-        )
-    )
-
-    if st.button(
-        "💾 Enregistrer le bilan",
-        key="enregistrer_bilan"
-    ):
-
-        st.success(
-            "✅ Bilan enregistré."
-        )
-
-
-# ============================================================
-# PAGE : FACTURATION
-# ============================================================
-
-elif page == "🧾 Facturation":
-
-    st.title("🧾 Facturation")
-
-    st.subheader(
-        "Facture"
-    )
+    st.subheader("Nouvelle séance")
 
 
     # ========================================================
     # ÉLÈVE
     # ========================================================
 
-    eleve_facture = st.selectbox(
+    eleve = st.selectbox(
         "Élève",
         ELEVES,
-        key="facture_eleve"
+        key="nouvelle_eleve"
     )
 
 
     # ========================================================
-    # TYPE DE PÉRIODE
+    # DATE ET HEURES
     # ========================================================
 
-    type_periode = st.selectbox(
-        "Période de facturation",
-        [
-            "Mensuelle",
-            "Hebdomadaire",
-            "Personnalisée",
-            "Toutes les séances"
-        ],
-        key="type_periode"
+    date_seance = st.date_input(
+        "Date de la séance",
+        value=date.today(),
+        key="nouvelle_date"
+    )
+
+    heure_debut = st.time_input(
+        "Heure de début",
+        value=time(14, 0),
+        key="nouvelle_heure_debut"
+    )
+
+    heure_fin = st.time_input(
+        "Heure de fin",
+        value=time(15, 0),
+        key="nouvelle_heure_fin"
     )
 
 
-    aujourd_hui = date.today()
+    # ========================================================
+    # MODE
+    # ========================================================
+
+    mode = st.selectbox(
+        "Mode",
+        ["Présentiel", "Distanciel"],
+        key="nouvelle_mode"
+    )
 
 
     # ========================================================
-    # PÉRIODE MENSUELLE
+    # DISCIPLINES
     # ========================================================
 
-    if type_periode == "Mensuelle":
+    disciplines = st.multiselect(
+        "Discipline(s)",
+        DISCIPLINES,
+        key="nouvelles_disciplines"
+    )
 
-        mois_noms = [
-            "Janvier",
-            "Février",
-            "Mars",
-            "Avril",
-            "Mai",
-            "Juin",
-            "Juillet",
-            "Août",
-            "Septembre",
-            "Octobre",
-            "Novembre",
-            "Décembre"
-        ]
 
-        mois_facture = st.selectbox(
-            "Mois",
-            range(1, 13),
-            format_func=lambda x: mois_noms[x - 1]
+    # ========================================================
+    # CONTENU
+    # ========================================================
+
+    contenu_selection = st.multiselect(
+        "Contenu de la séance",
+        CONTENUS,
+        key="nouveaux_contenus"
+    )
+
+    contenu_manuel = st.text_area(
+        "Saisie manuelle du contenu",
+        key="contenu_manuel"
+    )
+
+    contenu_final = ", ".join(contenu_selection)
+
+    if contenu_manuel.strip():
+
+        if contenu_final:
+            contenu_final += " — "
+
+        contenu_final += contenu_manuel.strip()
+
+
+    # ========================================================
+    # TRAVAIL À FAIRE
+    # ========================================================
+
+    travail_selection = st.selectbox(
+        "Travail à faire",
+        TRAVAUX,
+        key="nouveau_travail_selection"
+    )
+
+    if travail_selection == "Autre":
+
+        travail = st.text_input(
+            "Préciser le travail à faire",
+            key="nouveau_travail_autre"
         )
 
-        annee_facture = st.number_input(
-            "Année",
-            min_value=2020,
-            max_value=2100,
-            value=aujourd_hui.year,
-            step=1
+    else:
+
+        travail = travail_selection
+
+
+    # ========================================================
+    # OBSERVATIONS
+    # ========================================================
+
+    observations_selection = st.multiselect(
+        "Observations",
+        OBSERVATIONS,
+        key="nouvelles_observations"
+    )
+
+    observation_manuel = st.text_area(
+        "Saisie manuelle de l'observation",
+        key="observation_manuel"
+    )
+
+    observation_finale = ", ".join(observations_selection)
+
+    if observation_manuel.strip():
+
+        if observation_finale:
+            observation_finale += " — "
+
+        observation_finale += observation_manuel.strip()
+
+
+    # ========================================================
+    # ENREGISTREMENT
+    # ========================================================
+
+    if st.button(
+        "💾 Enregistrer la séance",
+        type="primary"
+    ):
+
+        debut_minutes = (
+            heure_debut.hour * 60
+            + heure_debut.minute
         )
 
-        date_debut = date(
-            int(annee_facture),
-            int(mois_facture),
-            1
+        fin_minutes = (
+            heure_fin.hour * 60
+            + heure_fin.minute
         )
 
-        if mois_facture == 12:
+        duree_minutes = fin_minutes - debut_minutes
 
-            date_fin = date(
-                int(annee_facture) + 1,
-                1,
-                1
-            ) - timedelta(days=1)
+
+        if duree_minutes <= 0:
+
+            st.error(
+                "❌ L'heure de fin doit être après l'heure de début."
+            )
+
+
+        elif not disciplines:
+
+            st.error(
+                "❌ Sélectionnez au moins une discipline."
+            )
+
+
+        elif not contenu_final.strip():
+
+            st.error(
+                "❌ Indiquez le contenu de la séance."
+            )
+
 
         else:
 
-            date_fin = date(
-                int(annee_facture),
-                int(mois_facture) + 1,
-                1
-            ) - timedelta(days=1)
+            nouvelle_seance = {
+
+                "eleve": eleve,
+
+                "date": date_seance.isoformat(),
+
+                "heure_debut":
+                    heure_debut.strftime("%H:%M:%S"),
+
+                "heure_fin":
+                    heure_fin.strftime("%H:%M:%S"),
+
+                "duree_minutes":
+                    duree_minutes,
+
+                "mode":
+                    mode,
+
+                "disciplines":
+                    ", ".join(disciplines),
+
+                "contenu":
+                    contenu_final,
+
+                "travail":
+                    travail,
+
+                "observations":
+                    observation_finale
+            }
 
 
-    # ========================================================
-    # PÉRIODE HEBDOMADAIRE
-    # ========================================================
+            try:
 
-    elif type_periode == "Hebdomadaire":
+                supabase \
+                    .table("seances") \
+                    .insert(nouvelle_seance) \
+                    .execute()
 
-        date_selection = st.date_input(
-            "Choisir un jour de la semaine",
-            value=aujourd_hui
+                st.success(
+                    "✅ Séance enregistrée dans Supabase !"
+                )
+
+            except Exception as e:
+
+                st.error(
+                    "❌ Erreur lors de l'enregistrement."
+                )
+
+                st.write(e)
+
+
+# ============================================================
+# CAHIER DE TEXTE
+# ============================================================
+
+elif menu == "📖 Cahier de texte":
+
+    st.header("📖 Cahier de texte")
+
+    df = recuperer_seances()
+
+
+    if df.empty:
+
+        st.info("Aucune séance enregistrée.")
+
+
+    else:
+
+        eleve_cahier = st.selectbox(
+            "Choisir l'élève",
+            ELEVES,
+            key="cahier_eleve"
         )
 
-        lundi = (
-            date_selection
-            - timedelta(
-                days=date_selection.weekday()
+        df_eleve = df[
+            df["eleve"] == eleve_cahier
+        ].copy()
+
+
+        if df_eleve.empty:
+
+            st.info(
+                "Aucune séance enregistrée pour cet élève."
             )
+
+
+        else:
+
+            df_eleve = df_eleve.sort_values(
+                "date",
+                ascending=False
+            )
+
+
+            for _, ligne in df_eleve.iterrows():
+
+                st.markdown("---")
+
+                st.subheader(
+                    f"📅 {ligne['date']}"
+                )
+
+                st.write(
+                    f"**Horaire :** "
+                    f"{ligne['heure_debut']} → "
+                    f"{ligne['heure_fin']}"
+                )
+
+                st.write(
+                    f"**Discipline(s) :** "
+                    f"{ligne['disciplines']}"
+                )
+
+                st.write(
+                    f"**Contenu :** "
+                    f"{ligne['contenu']}"
+                )
+
+                st.write(
+                    f"**Travail à faire :** "
+                    f"{ligne['travail']}"
+                )
+
+                st.write(
+                    f"**Observations :** "
+                    f"{ligne['observations']}"
+                )
+
+
+# ============================================================
+# MODIFICATION D'UNE SÉANCE
+# ============================================================
+
+elif menu == "✏️ Modifier une séance":
+
+    st.header("✏️ Modifier une séance")
+
+    df = recuperer_seances()
+
+
+    if df.empty:
+
+        st.info("Aucune séance enregistrée.")
+
+
+    else:
+
+        eleve_modification = st.selectbox(
+            "Élève",
+            sorted(
+                df["eleve"]
+                .dropna()
+                .unique()
+            ),
+            key="modif_eleve"
         )
 
-        date_debut = lundi
 
-        date_fin = lundi + timedelta(
-            days=6
+        df_eleve = df[
+            df["eleve"] == eleve_modification
+        ].copy()
+
+
+        df_eleve = df_eleve.sort_values(
+            "date",
+            ascending=False
         )
 
 
-        st.info(
-            f"Période sélectionnée : "
-            f"{date_debut.strftime('%d/%m/%Y')} "
-            f"→ "
-            f"{date_fin.strftime('%d/%m/%Y')}"
+        choix = []
+
+        for _, ligne in df_eleve.iterrows():
+
+            choix.append(
+                f"{ligne['date']} - "
+                f"{ligne['heure_debut']} - "
+                f"{ligne['contenu']}"
+            )
+
+
+        index_choisi = st.selectbox(
+            "Séance à modifier",
+            range(len(choix)),
+            format_func=lambda x: choix[x],
+            key="choix_seance"
         )
 
 
-    # ========================================================
-    # PÉRIODE PERSONNALISÉE
-    # ========================================================
+        ligne = df_eleve.iloc[index_choisi]
 
-    elif type_periode == "Personnalisée":
+        identifiant = ligne["id"]
 
-        col1, col2 = st.columns(2)
 
-        with col1:
+        # ====================================================
+        # FORMULAIRE
+        # ====================================================
+
+        st.subheader("Modifier la séance")
+
+
+        nouvelle_date = st.date_input(
+            "Date",
+            value=datetime.strptime(
+                str(ligne["date"]),
+                "%Y-%m-%d"
+            ).date(),
+            key="modif_date"
+        )
+
+
+        try:
+
+            heure_debut_initiale = datetime.strptime(
+                str(ligne["heure_debut"]),
+                "%H:%M:%S"
+            ).time()
+
+        except ValueError:
+
+            heure_debut_initiale = datetime.strptime(
+                str(ligne["heure_debut"]),
+                "%H:%M"
+            ).time()
+
+
+        try:
+
+            heure_fin_initiale = datetime.strptime(
+                str(ligne["heure_fin"]),
+                "%H:%M:%S"
+            ).time()
+
+        except ValueError:
+
+            heure_fin_initiale = datetime.strptime(
+                str(ligne["heure_fin"]),
+                "%H:%M"
+            ).time()
+
+
+        nouvelle_heure_debut = st.time_input(
+            "Heure de début",
+            value=heure_debut_initiale,
+            key="modif_heure_debut"
+        )
+
+
+        nouvelle_heure_fin = st.time_input(
+            "Heure de fin",
+            value=heure_fin_initiale,
+            key="modif_heure_fin"
+        )
+
+
+        nouveau_mode = st.selectbox(
+            "Mode",
+            ["Présentiel", "Distanciel"],
+            index=(
+                0
+                if ligne["mode"] == "Présentiel"
+                else 1
+            ),
+            key="modif_mode"
+        )
+
+
+        nouvelle_disciplines = st.text_input(
+            "Discipline(s)",
+            value=str(ligne["disciplines"]),
+            key="modif_disciplines"
+        )
+
+
+        nouveau_contenu = st.text_area(
+            "Contenu",
+            value=str(ligne["contenu"]),
+            key="modif_contenu"
+        )
+
+
+        nouveau_travail = st.text_area(
+            "Travail à faire",
+            value=str(ligne["travail"]),
+            key="modif_travail"
+        )
+
+
+        nouvelles_observations = st.text_area(
+            "Observations",
+            value=str(ligne["observations"]),
+            key="modif_observations"
+        )
+
+
+        # ====================================================
+        # SAUVEGARDE
+        # ====================================================
+
+        if st.button(
+            "💾 Enregistrer les modifications",
+            type="primary"
+        ):
+
+            debut_minutes = (
+                nouvelle_heure_debut.hour * 60
+                + nouvelle_heure_debut.minute
+            )
+
+            fin_minutes = (
+                nouvelle_heure_fin.hour * 60
+                + nouvelle_heure_fin.minute
+            )
+
+            duree_minutes = fin_minutes - debut_minutes
+
+
+            if duree_minutes <= 0:
+
+                st.error(
+                    "❌ L'heure de fin doit être après "
+                    "l'heure de début."
+                )
+
+
+            else:
+
+                modifications = {
+
+                    "date":
+                        nouvelle_date.isoformat(),
+
+                    "heure_debut":
+                        nouvelle_heure_debut.strftime("%H:%M:%S"),
+
+                    "heure_fin":
+                        nouvelle_heure_fin.strftime("%H:%M:%S"),
+
+                    "duree_minutes":
+                        duree_minutes,
+
+                    "mode":
+                        nouveau_mode,
+
+                    "disciplines":
+                        nouvelle_disciplines,
+
+                    "contenu":
+                        nouveau_contenu,
+
+                    "travail":
+                        nouveau_travail,
+
+                    "observations":
+                        nouvelles_observations
+                }
+
+
+                try:
+
+                    supabase \
+                        .table("seances") \
+                        .update(modifications) \
+                        .eq("id", identifiant) \
+                        .execute()
+
+                    st.success(
+                        "✅ Séance modifiée avec succès !"
+                    )
+
+                    st.rerun()
+
+
+                except Exception as e:
+
+                    st.error(
+                        "❌ Erreur lors de la modification."
+                    )
+
+                    st.write(e)
+
+
+# ============================================================
+# BILAN
+# ============================================================
+
+elif menu == "📊 Bilan":
+
+    st.header("📊 Bilan de l'élève")
+
+    df = recuperer_seances()
+
+
+    if df.empty:
+
+        st.info("Aucune séance enregistrée.")
+
+
+    else:
+
+        eleve_bilan = st.selectbox(
+            "Élève",
+            ELEVES,
+            key="bilan_eleve"
+        )
+
+
+        df_eleve = df[
+            df["eleve"] == eleve_bilan
+        ].copy()
+
+
+        if df_eleve.empty:
+
+            st.info(
+                "Aucune séance pour cet élève."
+            )
+
+
+        else:
+
+            total_minutes = pd.to_numeric(
+                df_eleve["duree_minutes"],
+                errors="coerce"
+            ).fillna(0).sum()
+
+
+            total_heures = total_minutes / 60
+
+            nombre_seances = len(df_eleve)
+
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                st.metric(
+                    "Nombre de séances",
+                    nombre_seances
+                )
+
+            with col2:
+
+                st.metric(
+                    "Heures travaillées",
+                    f"{total_heures:.2f} h"
+                )
+
+
+            st.subheader("📚 Séances")
+
+
+            st.dataframe(
+                df_eleve[
+                    [
+                        "date",
+                        "disciplines",
+                        "contenu",
+                        "observations"
+                    ]
+                ],
+                use_container_width=True
+            )
+
+
+# ============================================================
+# FACTURATION
+# ============================================================
+
+elif menu == "🧾 Facturation":
+
+    st.header("🧾 Facturation")
+
+    df = recuperer_seances()
+
+
+    if df.empty:
+
+        st.info("Aucune séance enregistrée.")
+
+
+    else:
+
+        eleve_facturation = st.selectbox(
+            "Élève",
+            ELEVES,
+            key="facturation_eleve"
+        )
+
+
+        # ====================================================
+        # PÉRIODE
+        # ====================================================
+
+        type_periode = st.selectbox(
+            "Période de facturation",
+            [
+                "Mensuelle",
+                "Hebdomadaire",
+                "Personnalisée",
+                "Toutes les séances"
+            ],
+            key="type_periode"
+        )
+
+
+        # ====================================================
+        # MENSUELLE
+        # ====================================================
+
+        if type_periode == "Mensuelle":
+
+            mois = st.selectbox(
+                "Mois",
+                list(range(1, 13)),
+                index=date.today().month - 1,
+                key="facturation_mois"
+            )
+
+
+            annee = st.number_input(
+                "Année",
+                min_value=2020,
+                max_value=2100,
+                value=date.today().year,
+                step=1,
+                key="facturation_annee"
+            )
+
+
+            df["date"] = pd.to_datetime(
+                df["date"]
+            )
+
+
+            df_filtre = df[
+                (df["eleve"] == eleve_facturation)
+                &
+                (df["date"].dt.month == mois)
+                &
+                (df["date"].dt.year == annee)
+            ]
+
+
+        # ====================================================
+        # HEBDOMADAIRE
+        # ====================================================
+
+        elif type_periode == "Hebdomadaire":
+
+            date_debut = st.date_input(
+                "Début de la semaine",
+                key="semaine_debut"
+            )
+
+
+            date_fin = (
+                date_debut
+                + pd.Timedelta(days=6)
+            )
+
+
+            df["date"] = pd.to_datetime(
+                df["date"]
+            )
+
+
+            df_filtre = df[
+                (df["eleve"] == eleve_facturation)
+                &
+                (df["date"].dt.date >= date_debut)
+                &
+                (df["date"].dt.date <= date_fin)
+            ]
+
+
+        # ====================================================
+        # PERSONNALISÉE
+        # ====================================================
+
+        elif type_periode == "Personnalisée":
 
             date_debut = st.date_input(
                 "Date de début",
-                value=aujourd_hui
+                key="periode_debut"
             )
 
-        with col2:
 
             date_fin = st.date_input(
                 "Date de fin",
-                value=aujourd_hui
+                key="periode_fin"
             )
 
 
-        if date_fin < date_debut:
-
-            st.error(
-                "❌ La date de fin doit être "
-                "postérieure ou égale à la date de début."
-            )
-
-            st.stop()
-
-
-    # ========================================================
-    # TOUTES LES SÉANCES
-    # ========================================================
-
-    else:
-
-        date_debut = date(
-            2000,
-            1,
-            1
-        )
-
-        date_fin = date(
-            2100,
-            12,
-            31
-        )
-
-
-    # ========================================================
-    # TARIF
-    # ========================================================
-
-    tarif_horaire = st.number_input(
-        "Tarif horaire (€)",
-        min_value=0.0,
-        value=35.0,
-        step=1.0,
-        key="tarif_horaire"
-    )
-
-
-    # ========================================================
-    # LECTURE CSV
-    # ========================================================
-
-    fichier = "seances.csv"
-
-
-    if not os.path.exists(fichier):
-
-        st.info(
-            "Aucune séance enregistrée."
-        )
-
-        st.stop()
-
-
-    df_facture = pd.read_csv(
-        fichier
-    )
-
-
-    if len(df_facture) == 0:
-
-        st.info(
-            "Aucune séance enregistrée."
-        )
-
-        st.stop()
-
-
-    # ========================================================
-    # DATES
-    # ========================================================
-
-    df_facture["date"] = pd.to_datetime(
-        df_facture["date"],
-        errors="coerce"
-    )
-
-
-    # ========================================================
-    # DURÉE
-    # ========================================================
-
-    if "duree_minutes" not in df_facture.columns:
-
-        def calculer_duree_facture(ligne):
-
-            try:
-
-                debut = datetime.strptime(
-                    str(ligne["heure_debut"]),
-                    "%H:%M:%S"
-                )
-
-            except:
-
-                debut = datetime.strptime(
-                    str(ligne["heure_debut"]),
-                    "%H:%M"
-                )
-
-
-            try:
-
-                fin = datetime.strptime(
-                    str(ligne["heure_fin"]),
-                    "%H:%M:%S"
-                )
-
-            except:
-
-                fin = datetime.strptime(
-                    str(ligne["heure_fin"]),
-                    "%H:%M"
-                )
-
-
-            return (
-                fin.hour * 60
-                + fin.minute
-                - debut.hour * 60
-                - debut.minute
+            df["date"] = pd.to_datetime(
+                df["date"]
             )
 
 
-        df_facture["duree_minutes"] = df_facture.apply(
-            calculer_duree_facture,
-            axis=1
-        )
-
-    else:
-
-        df_facture["duree_minutes"] = pd.to_numeric(
-            df_facture["duree_minutes"],
-            errors="coerce"
-        )
-
-
-    # ========================================================
-    # FILTRE
-    # ========================================================
-
-    df_facture = df_facture[
-        (df_facture["eleve"] == eleve_facture)
-        &
-        (
-            df_facture["date"].dt.date
-            >= date_debut
-        )
-        &
-        (
-            df_facture["date"].dt.date
-            <= date_fin
-        )
-    ].copy()
-
-
-    # ========================================================
-    # AUCUNE SÉANCE
-    # ========================================================
-
-    if len(df_facture) == 0:
-
-        st.warning(
-            "Aucune séance trouvée pour "
-            f"{eleve_facture} entre "
-            f"{date_debut.strftime('%d/%m/%Y')} "
-            f"et "
-            f"{date_fin.strftime('%d/%m/%Y')}."
-        )
-
-        st.stop()
-
-
-    # ========================================================
-    # CALCUL
-    # ========================================================
-
-    total_minutes = int(
-        df_facture["duree_minutes"].sum()
-    )
-
-    total_heures = (
-        total_minutes / 60
-    )
-
-    heures_entieres = (
-        total_minutes // 60
-    )
-
-    minutes_restantes = (
-        total_minutes % 60
-    )
-
-    montant_total = (
-        total_heures * tarif_horaire
-    )
-
-
-    # ========================================================
-    # AFFICHAGE
-    # ========================================================
-
-    st.markdown("---")
-
-    st.subheader(
-        f"🧾 Facture — {eleve_facture}"
-    )
-
-    st.write(
-        f"📅 **Période :** "
-        f"{date_debut.strftime('%d/%m/%Y')} "
-        f"→ "
-        f"{date_fin.strftime('%d/%m/%Y')}"
-    )
-
-
-    col1, col2, col3 = st.columns(3)
-
-
-    with col1:
-
-        st.metric(
-            "Nombre de séances",
-            len(df_facture)
-        )
-
-
-    with col2:
-
-        st.metric(
-            "Heures",
-            f"{heures_entieres} h "
-            f"{minutes_restantes:02d}"
-        )
-
-
-    with col3:
-
-        st.metric(
-            "Total",
-            f"{montant_total:.2f} €"
-        )
-
-
-    # ========================================================
-    # DÉTAIL DES SÉANCES
-    # ========================================================
-
-    st.subheader(
-        "📋 Détail des séances"
-    )
-
-
-    tableau = df_facture[
-        [
-            "date",
-            "heure_debut",
-            "heure_fin",
-            "duree_minutes",
-            "mode",
-            "disciplines"
-        ]
-    ].copy()
-
-
-    tableau["date"] = (
-        tableau["date"]
-        .dt.strftime("%d/%m/%Y")
-    )
-
-
-    tableau["Durée"] = (
-        tableau["duree_minutes"]
-        .apply(
-            lambda x:
-            f"{int(x // 60)} h "
-            f"{int(x % 60):02d}"
-        )
-    )
-
-
-    tableau = tableau[
-        [
-            "date",
-            "heure_debut",
-            "heure_fin",
-            "Durée",
-            "mode",
-            "disciplines"
-        ]
-    ]
-
-
-    tableau.columns = [
-        "Date",
-        "Début",
-        "Fin",
-        "Durée",
-        "Mode",
-        "Discipline(s)"
-    ]
-
-
-    st.dataframe(
-        tableau,
-        use_container_width=True,
-        hide_index=True
-    )
-
-
-    # ========================================================
-    # RÉCAPITULATIF
-    # ========================================================
-
-    st.markdown("---")
-
-    st.write(
-        f"**Élève :** {eleve_facture}"
-    )
-
-    st.write(
-        f"**Période :** "
-        f"{date_debut.strftime('%d/%m/%Y')} "
-        f"→ "
-        f"{date_fin.strftime('%d/%m/%Y')}"
-    )
-
-    st.write(
-        f"**Nombre d'heures :** "
-        f"{heures_entieres} h "
-        f"{minutes_restantes:02d}"
-    )
-
-    st.write(
-        f"**Tarif horaire :** "
-        f"{tarif_horaire:.2f} €"
-    )
-
-    st.markdown(
-        f"### 💶 Total à payer : "
-        f"{montant_total:.2f} €"
-    )
-
-
-    # ========================================================
-    # GÉNÉRATION PDF
-    # ========================================================
-
-    def generer_facture_pdf(
-        eleve,
-        date_debut,
-        date_fin,
-        df_seances,
-        tarif,
-        montant
-    ):
-
-        buffer = BytesIO()
-
-
-        document = SimpleDocTemplate(
-            buffer,
-            pagesize=A4,
-            rightMargin=50,
-            leftMargin=50,
-            topMargin=50,
-            bottomMargin=50
-        )
-
-
-        styles = getSampleStyleSheet()
-
-        titre = styles["Title"]
-        titre.alignment = TA_CENTER
-
-        normal = styles["Normal"]
-
-        total_style = styles["Heading2"]
-        total_style.alignment = TA_RIGHT
-
-
-        elements = []
-
-
-        # ----------------------------------------------------
-        # EN-TÊTE
-        # ----------------------------------------------------
-
-        elements.append(
-            Paragraph(
-                "COURS HERCULE",
-                titre
-            )
-        )
-
-        elements.append(
-            Paragraph(
-                "Cours particuliers",
-                normal
-            )
-        )
-
-        elements.append(
-            Spacer(1, 25)
-        )
-
-
-        # ----------------------------------------------------
-        # NUMÉRO FACTURE
-        # ----------------------------------------------------
-
-        numero_facture = (
-            datetime.now().strftime("%Y%m%d%H%M%S")
-        )
-
-
-        elements.append(
-            Paragraph(
-                f"<b>FACTURE N° :</b> "
-                f"{numero_facture}",
-                normal
-            )
-        )
-
-        elements.append(
-            Spacer(1, 10)
-        )
-
-
-        elements.append(
-            Paragraph(
-                f"<b>Élève :</b> {eleve}",
-                normal
-            )
-        )
-
-
-        elements.append(
-            Paragraph(
-                f"<b>Période :</b> "
-                f"{date_debut.strftime('%d/%m/%Y')} "
-                f"au "
-                f"{date_fin.strftime('%d/%m/%Y')}",
-                normal
-            )
-        )
-
-
-        elements.append(
-            Spacer(1, 25)
-        )
-
-
-        # ----------------------------------------------------
-        # TABLEAU
-        # ----------------------------------------------------
-
-        donnees = [
-            [
-                "Date",
-                "Début",
-                "Fin",
-                "Durée",
-                "Mode"
+            df_filtre = df[
+                (df["eleve"] == eleve_facturation)
+                &
+                (df["date"].dt.date >= date_debut)
+                &
+                (df["date"].dt.date <= date_fin)
             ]
-        ]
 
 
-        for _, ligne in df_seances.iterrows():
+        # ====================================================
+        # TOUTES LES SÉANCES
+        # ====================================================
 
-            duree = int(
-                ligne["duree_minutes"]
+        else:
+
+            df_filtre = df[
+                df["eleve"] == eleve_facturation
+            ].copy()
+
+
+        # ====================================================
+        # RÉSULTATS
+        # ====================================================
+
+        if df_filtre.empty:
+
+            st.warning(
+                "Aucune séance pour cette période."
             )
 
 
-            duree_texte = (
-                f"{duree // 60} h "
-                f"{duree % 60:02d}"
-            )
+        else:
+
+            total_minutes = pd.to_numeric(
+                df_filtre["duree_minutes"],
+                errors="coerce"
+            ).fillna(0).sum()
 
 
-            date_texte = (
-                ligne["date"].strftime(
-                    "%d/%m/%Y"
+            total_heures = total_minutes / 60
+
+
+            st.subheader("Résumé")
+
+
+            col1, col2 = st.columns(2)
+
+
+            with col1:
+
+                st.metric(
+                    "Nombre de séances",
+                    len(df_filtre)
                 )
-            )
 
 
-            donnees.append(
-                [
-                    date_texte,
-                    str(ligne["heure_debut"]),
-                    str(ligne["heure_fin"]),
-                    duree_texte,
-                    str(ligne["mode"])
-                ]
-            )
+            with col2:
 
-
-        total_texte = (
-            f"{int(total_minutes // 60)} h "
-            f"{int(total_minutes % 60):02d}"
-        )
-
-
-        donnees.append(
-            [
-                "",
-                "",
-                "TOTAL",
-                total_texte,
-                ""
-            ]
-        )
-
-
-        tableau_pdf = Table(
-            donnees,
-            colWidths=[
-                75,
-                60,
-                60,
-                70,
-                90
-            ]
-        )
-
-
-        tableau_pdf.setStyle(
-            TableStyle([
-                (
-                    "BACKGROUND",
-                    (0, 0),
-                    (-1, 0),
-                    colors.lightgrey
-                ),
-
-                (
-                    "GRID",
-                    (0, 0),
-                    (-1, -1),
-                    0.5,
-                    colors.grey
-                ),
-
-                (
-                    "FONTNAME",
-                    (0, 0),
-                    (-1, 0),
-                    "Helvetica-Bold"
-                ),
-
-                (
-                    "FONTNAME",
-                    (0, -1),
-                    (-1, -1),
-                    "Helvetica-Bold"
-                ),
-
-                (
-                    "ALIGN",
-                    (1, 0),
-                    (-1, -1),
-                    "CENTER"
-                ),
-
-                (
-                    "VALIGN",
-                    (0, 0),
-                    (-1, -1),
-                    "MIDDLE"
-                ),
-
-                (
-                    "TOPPADDING",
-                    (0, 0),
-                    (-1, -1),
-                    7
-                ),
-
-                (
-                    "BOTTOMPADDING",
-                    (0, 0),
-                    (-1, -1),
-                    7
+                st.metric(
+                    "Nombre d'heures",
+                    f"{total_heures:.2f} h"
                 )
-            ])
-        )
 
 
-        elements.append(
-            tableau_pdf
-        )
+            # =================================================
+            # TARIF
+            # =================================================
 
-
-        elements.append(
-            Spacer(1, 25)
-        )
-
-
-        elements.append(
-            Paragraph(
-                f"Tarif horaire : "
-                f"{tarif:.2f} €",
-                normal
+            tarif = st.number_input(
+                "Tarif horaire (€)",
+                min_value=0.0,
+                value=30.0,
+                step=1.0,
+                key="tarif_horaire"
             )
-        )
 
 
-        elements.append(
-            Spacer(1, 10)
-        )
+            montant = total_heures * tarif
 
 
-        elements.append(
-            Paragraph(
-                f"<b>TOTAL À PAYER : "
-                f"{montant:.2f} €</b>",
-                total_style
+            st.metric(
+                "Montant de la facture",
+                f"{montant:.2f} €"
             )
-        )
 
 
-        elements.append(
-            Spacer(1, 40)
-        )
+            # =================================================
+            # DÉTAIL
+            # =================================================
+
+            st.subheader("Détail des séances")
 
 
-        elements.append(
-            Paragraph(
-                "Merci pour votre confiance.",
-                normal
+            st.dataframe(
+                df_filtre[
+                    [
+                        "date",
+                        "heure_debut",
+                        "heure_fin",
+                        "disciplines",
+                        "contenu",
+                        "duree_minutes"
+                    ]
+                ],
+                use_container_width=True
             )
-        )
-
-
-        document.build(
-            elements
-        )
-
-
-        buffer.seek(0)
-
-        return buffer
-
-
-    # ========================================================
-    # PDF
-    # ========================================================
-
-    pdf = generer_facture_pdf(
-        eleve_facture,
-        date_debut,
-        date_fin,
-        df_facture,
-        tarif_horaire,
-        montant_total
-    )
-
-
-    st.download_button(
-        label="📄 Télécharger la facture PDF",
-        data=pdf,
-        file_name=(
-            f"facture_"
-            f"{eleve_facture}_"
-            f"{date_debut.strftime('%Y%m%d')}_"
-            f"{date_fin.strftime('%Y%m%d')}.pdf"
-        ),
-        mime="application/pdf"
-    )
