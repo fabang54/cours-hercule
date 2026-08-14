@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import os
 
-# =========================
+# ============================================================
 # PROTECTION ENSEIGNANT
-# =========================
+# ============================================================
 
 mot_de_passe = st.text_input(
     "Mot de passe enseignant",
@@ -15,42 +15,165 @@ if mot_de_passe != st.secrets["mot_de_passe"]:
     st.info("🔒 Espace réservé à l'enseignant.")
     st.stop()
 
-# =========================
-# GESTION DES SÉANCES
-# =========================
 
-st.title("Gestion des séances")
+# ============================================================
+# LISTES
+# ============================================================
+
+ELEVES = [
+    "Nino",
+    "Emma",
+    "Lucas",
+    "Sarah"
+]
+
+DISCIPLINES = [
+    "Mathématiques",
+    "Physique",
+    "Informatique"
+]
+
+CONTENUS = [
+    "Équations simples",
+    "Fractions",
+    "Calcul littéral",
+    "Pythagore",
+    "Fonctions",
+    "Proportionnalité",
+    "Géométrie",
+    "Statistiques",
+    "Probabilités",
+    "Autre"
+]
+
+TRAVAUX = [
+    "Exercices du manuel",
+    "Exercices supplémentaires",
+    "Revoir le cours",
+    "Apprendre le cours",
+    "Préparer le prochain cours",
+    "Aucun",
+    "Autre"
+]
+
+OBSERVATIONS = [
+    "Élève attentif",
+    "Élève fatigué",
+    "Élève distrait",
+    "Difficultés importantes",
+    "Bonne participation",
+    "Très bonne séance",
+    "Progrès constatés",
+    "Autre"
+]
+
+
+# ============================================================
+# TITRE
+# ============================================================
+
+st.title("📚 Gestion des séances")
 
 st.subheader("Nouvelle séance")
 
-eleve = st.text_input("Nom de l'élève")
 
-date = st.date_input("Date de la séance")
+# ============================================================
+# ÉLÈVE
+# ============================================================
 
-heure_debut = st.time_input("Heure de début")
-heure_fin = st.time_input("Heure de fin")
+eleve = st.selectbox(
+    "Élève",
+    ELEVES
+)
+
+
+# ============================================================
+# DATE ET HEURES
+# ============================================================
+
+date = st.date_input(
+    "Date de la séance"
+)
+
+heure_debut = st.time_input(
+    "Heure de début"
+)
+
+heure_fin = st.time_input(
+    "Heure de fin"
+)
+
+
+# ============================================================
+# MODE
+# ============================================================
 
 mode = st.selectbox(
     "Mode",
     ["Présentiel", "Distanciel"]
 )
 
-disciplines = st.multiselect(
-    "Discipline(s)",
-    ["Mathématiques", "Physique", "Informatique"]
+
+# ============================================================
+# DISCIPLINE
+# ============================================================
+
+discipline = st.selectbox(
+    "Discipline",
+    DISCIPLINES
 )
 
-contenu = st.text_area("Contenu de la séance")
 
-travail = st.text_area("Travail à faire")
+# ============================================================
+# CONTENU
+# ============================================================
 
-observations = st.text_area("Observations")
+contenu = st.selectbox(
+    "Contenu de la séance",
+    CONTENUS
+)
 
-# =========================
+if contenu == "Autre":
+    contenu = st.text_input(
+        "Préciser le contenu"
+    )
+
+
+# ============================================================
+# TRAVAIL À FAIRE
+# ============================================================
+
+travail = st.selectbox(
+    "Travail à faire",
+    TRAVAUX
+)
+
+if travail == "Autre":
+    travail = st.text_input(
+        "Préciser le travail à faire"
+    )
+
+
+# ============================================================
+# OBSERVATIONS
+# ============================================================
+
+observation = st.selectbox(
+    "Observations",
+    OBSERVATIONS
+)
+
+if observation == "Autre":
+    observation = st.text_input(
+        "Préciser l'observation"
+    )
+
+
+# ============================================================
 # ENREGISTREMENT
-# =========================
+# ============================================================
 
-if st.button("Enregistrer"):
+if st.button("💾 Enregistrer la séance"):
 
     nouvelle_seance = pd.DataFrame([{
         "eleve": eleve,
@@ -58,10 +181,10 @@ if st.button("Enregistrer"):
         "heure_debut": heure_debut,
         "heure_fin": heure_fin,
         "mode": mode,
-        "disciplines": ", ".join(disciplines),
+        "disciplines": discipline,
         "contenu": contenu,
         "travail": travail,
-        "observations": observations
+        "observations": observation
     }])
 
     fichier = "seances.csv"
