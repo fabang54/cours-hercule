@@ -1,7 +1,11 @@
 import streamlit as st
 import pandas as pd
+
 from supabase import create_client
 from datetime import date, time, datetime
+
+from io import BytesIO
+import io
 
 
 # ============================================================
@@ -26,6 +30,34 @@ supabase = create_client(
 
 
 # ============================================================
+# AUTHENTIFICATION GOOGLE
+# ============================================================
+
+def connexion_google():
+
+    if not st.user.is_logged_in:
+
+        st.title("📚 Cours Hercule")
+
+        st.info(
+            "Une connexion Google est nécessaire "
+            "pour sauvegarder automatiquement les séances "
+            "dans Google Drive."
+        )
+
+        if st.button(
+            "🔐 Se connecter avec Google",
+            type="primary"
+        ):
+            st.login("google")
+
+        st.stop()
+
+
+connexion_google()
+
+
+# ============================================================
 # PROTECTION ENSEIGNANT
 # ============================================================
 
@@ -35,7 +67,11 @@ mot_de_passe = st.text_input(
 )
 
 if mot_de_passe != st.secrets["mot_de_passe"]:
-    st.info("🔒 Espace réservé à l'enseignant.")
+
+    st.info(
+        "🔒 Espace réservé à l'enseignant."
+    )
+
     st.stop()
 
 
@@ -118,21 +154,6 @@ st.title("📚 Cours Hercule")
 
 
 # ============================================================
-# MENU
-# ============================================================
-
-menu = st.sidebar.radio(
-    "Menu",
-    [
-        "📚 Gestion des séances",
-        "📖 Cahier de texte",
-        "📊 Bilan",
-        "🧾 Facturation"
-    ]
-)
-
-
-# ============================================================
 # FONCTION : RÉCUPÉRER LES SÉANCES
 # ============================================================
 
@@ -155,16 +176,213 @@ def recuperer_seances():
 
 
 # ============================================================
+# GOOGLE DRIVE
+# ============================================================
+
+def obtenir_service_drive():
+
+    """
+    Construit le service Google Drive à partir
+    du jeton d'accès fourni par Streamlit.
+    """
+
+    try:
+
+        from google.oauth2.credentials import Credentials
+        from googleapiclient.discovery import build
+
+        access_token = st.user.tokens["access"]
+
+        credentials = Credentials(
+            token=access_token
+        )
+
+        service = build(
+            "drive",
+            "v3",
+            credentials=credentials,
+            cache_discovery=False
+        )
+
+        return service
+
+    except Exception as e:
+
+        raise Exception(
+            f"Connexion Google Drive impossible : {e}"
+        )
+
+
+# ============================================================
+# EXPORT CSV
+# ============================================================
+
+def dataframe_csv_bytes(df):
+
+    """
+    Transforme le DataFrame en CSV UTF-8.
+    """
+
+    buffer = io.StringIO()
+
+    df.to_csv(
+        buffer,
+        index=False,
+        encoding="utf-8-sig"
+    )
+
+    return buffer.getvalue().encode("utf-8-sig")
+
+
+# ============================================================
+# SAUVEGARDE GOOGLE DRIVE
+# ============================================================
+
+def sauvegarder_dans_drive(df):
+
+    """
+    Crée seances.csv s'il n'existe pas.
+
+    Sinon, met à jour le fichier existant.
+
+    Il n'y aura donc qu'un seul fichier :
+    seances.csv
+    """
+
+    from googleapiclient.http import MediaIoBaseUpload
+
+    service = obtenir_service_drive()
+
+    contenu_csv = dataframe_csv_bytes(df)
+
+    media = MediaIoBaseUpload(
+        BytesIO(contenu_csv),
+        mimetype="text/csv",
+        resumable=False
+    )
+
+    # --------------------------------------------------------
+    # RECHERCHE DU FICHIER EXISTANT
+    # --------------------------------------------------------
+
+    resultat = (
+        service.files()
+        .list(
+            q="name = 'seances.csv' "
+              "and trashed = false",
+            spaces="drive",
+            fields="files(id, name)",
+            pageSize=10
+        )
+        .execute()
+    )
+
+    fichiers = resultat.get(
+        "files",
+        []
+    )
+
+    # --------------------------------------------------------
+    # MISE À JOUR
+    # --------------------------------------------------------
+
+    if fichiers:
+
+        file_id = fichiers[0]["id"]
+
+        (
+            service.files()
+            .update(
+                fileId=file_id,
+                media_body=media
+            )
+            .execute()
+        )
+
+        return "mis à jour"
+
+    # --------------------------------------------------------
+    # CRÉATION
+    # --------------------------------------------------------
+
+    else:
+
+        metadata = {
+            "name": "seances.csv",
+            "mimeType": "text/csv"
+        }
+
+        (
+            service.files()
+            .create(
+                body=metadata,
+                media_body=media,
+                fields="id"
+            )
+            .execute()
+        )
+
+        return "créé"
+
+
+# ============================================================
+# SYNCHRONISATION GOOGLE DRIVE
+# ============================================================
+
+def synchroniser_drive():
+
+    """
+    Récupère toutes les séances depuis Supabase
+    et les sauvegarde dans seances.csv.
+    """
+
+    df = recuperer_seances()
+
+    if df.empty:
+
+        return False, "Aucune séance à sauvegarder."
+
+    try:
+
+        resultat = sauvegarder_dans_drive(
+            df
+        )
+
+        return (
+            True,
+            f"Google Drive : fichier seances.csv {resultat}."
+        )
+
+    except Exception as e:
+
+        return (
+            False,
+            f"Google Drive indisponible : {e}"
+        )
+
+
+# ============================================================
+# MENU
+# ============================================================
+
+menu = st.sidebar.radio(
+    "Menu",
+    [
+        "📚 Gestion des séances",
+        "📖 Cahier de texte",
+        "📊 Bilan",
+        "🧾 Facturation"
+    ]
+)
+
+
+# ============================================================
 # GESTION DES SÉANCES
 # ============================================================
 
 if menu == "📚 Gestion des séances":
 
     st.header("📚 Gestion des séances")
-
-    # --------------------------------------------------------
-    # CHOIX
-    # --------------------------------------------------------
 
     action_seance = st.radio(
         "Que souhaitez-vous faire ?",
@@ -185,29 +403,17 @@ if menu == "📚 Gestion des séances":
 
         st.subheader("➕ Nouvelle séance")
 
-        # ----------------------------------------------------
-        # ÉLÈVE
-        # ----------------------------------------------------
-
         eleve = st.selectbox(
             "Élève",
             ELEVES,
             key="nouvelle_eleve"
         )
 
-        # ----------------------------------------------------
-        # DATE
-        # ----------------------------------------------------
-
         date_seance = st.date_input(
             "Date de la séance",
             value=date.today(),
             key="nouvelle_date"
         )
-
-        # ----------------------------------------------------
-        # HORAIRES
-        # ----------------------------------------------------
 
         heure_debut = st.time_input(
             "Heure de début",
@@ -221,10 +427,6 @@ if menu == "📚 Gestion des séances":
             key="nouvelle_heure_fin"
         )
 
-        # ----------------------------------------------------
-        # MODE
-        # ----------------------------------------------------
-
         mode = st.selectbox(
             "Mode",
             [
@@ -234,19 +436,11 @@ if menu == "📚 Gestion des séances":
             key="nouvelle_mode"
         )
 
-        # ----------------------------------------------------
-        # DISCIPLINES
-        # ----------------------------------------------------
-
         disciplines = st.multiselect(
             "Discipline(s)",
             DISCIPLINES,
             key="nouvelles_disciplines"
         )
-
-        # ----------------------------------------------------
-        # CONTENU
-        # ----------------------------------------------------
 
         contenu_selection = st.multiselect(
             "Contenu de la séance",
@@ -270,10 +464,6 @@ if menu == "📚 Gestion des séances":
 
             contenu_final += contenu_manuel.strip()
 
-        # ----------------------------------------------------
-        # TRAVAIL
-        # ----------------------------------------------------
-
         travail_selection = st.selectbox(
             "Travail à faire",
             TRAVAUX,
@@ -290,10 +480,6 @@ if menu == "📚 Gestion des séances":
         else:
 
             travail = travail_selection
-
-        # ----------------------------------------------------
-        # OBSERVATIONS
-        # ----------------------------------------------------
 
         observations_selection = st.multiselect(
             "Observations",
@@ -317,9 +503,10 @@ if menu == "📚 Gestion des séances":
 
             observation_finale += observation_manuel.strip()
 
-        # ----------------------------------------------------
+
+        # ====================================================
         # ENREGISTREMENT
-        # ----------------------------------------------------
+        # ====================================================
 
         if st.button(
             "💾 Enregistrer la séance",
@@ -364,30 +551,81 @@ if menu == "📚 Gestion des séances":
             else:
 
                 nouvelle_seance = {
+
                     "eleve": eleve,
-                    "date": date_seance.isoformat(),
-                    "heure_debut": heure_debut.strftime("%H:%M:%S"),
-                    "heure_fin": heure_fin.strftime("%H:%M:%S"),
-                    "duree_minutes": duree_minutes,
-                    "mode": mode,
-                    "disciplines": ", ".join(disciplines),
-                    "contenu": contenu_final,
-                    "travail": travail,
-                    "observations": observation_finale
+
+                    "date":
+                        date_seance.isoformat(),
+
+                    "heure_debut":
+                        heure_debut.strftime(
+                            "%H:%M:%S"
+                        ),
+
+                    "heure_fin":
+                        heure_fin.strftime(
+                            "%H:%M:%S"
+                        ),
+
+                    "duree_minutes":
+                        duree_minutes,
+
+                    "mode":
+                        mode,
+
+                    "disciplines":
+                        ", ".join(
+                            disciplines
+                        ),
+
+                    "contenu":
+                        contenu_final,
+
+                    "travail":
+                        travail,
+
+                    "observations":
+                        observation_finale
                 }
 
                 try:
 
+                    # ----------------------------------------
+                    # SUPABASE
+                    # ----------------------------------------
+
                     (
                         supabase
                         .table("seances")
-                        .insert(nouvelle_seance)
+                        .insert(
+                            nouvelle_seance
+                        )
                         .execute()
                     )
 
                     st.success(
                         "✅ Séance enregistrée dans Supabase !"
                     )
+
+                    # ----------------------------------------
+                    # GOOGLE DRIVE
+                    # ----------------------------------------
+
+                    succes_drive, message_drive = (
+                        synchroniser_drive()
+                    )
+
+                    if succes_drive:
+
+                        st.success(
+                            f"☁️ {message_drive}"
+                        )
+
+                    else:
+
+                        st.warning(
+                            f"⚠️ {message_drive}"
+                        )
 
                     st.rerun()
 
@@ -406,7 +644,9 @@ if menu == "📚 Gestion des séances":
 
     else:
 
-        st.subheader("✏️ Modifier une séance")
+        st.subheader(
+            "✏️ Modifier une séance"
+        )
 
         df = recuperer_seances()
 
@@ -417,10 +657,6 @@ if menu == "📚 Gestion des séances":
             )
 
         else:
-
-            # ------------------------------------------------
-            # ÉLÈVE
-            # ------------------------------------------------
 
             eleve_modification = st.selectbox(
                 "Élève",
@@ -433,17 +669,14 @@ if menu == "📚 Gestion des séances":
             )
 
             df_eleve = df[
-                df["eleve"] == eleve_modification
+                df["eleve"]
+                == eleve_modification
             ].copy()
 
             df_eleve = df_eleve.sort_values(
                 "date",
                 ascending=False
             )
-
-            # ------------------------------------------------
-            # CHOIX DE LA SÉANCE
-            # ------------------------------------------------
 
             choix = []
 
@@ -470,10 +703,6 @@ if menu == "📚 Gestion des séances":
 
             st.markdown("---")
 
-            # ------------------------------------------------
-            # DATE
-            # ------------------------------------------------
-
             nouvelle_date = st.date_input(
                 "Date",
                 value=datetime.strptime(
@@ -482,10 +711,6 @@ if menu == "📚 Gestion des séances":
                 ).date(),
                 key="modif_date"
             )
-
-            # ------------------------------------------------
-            # HEURES
-            # ------------------------------------------------
 
             try:
 
@@ -535,10 +760,6 @@ if menu == "📚 Gestion des séances":
                 key="modif_heure_fin"
             )
 
-            # ------------------------------------------------
-            # MODE
-            # ------------------------------------------------
-
             nouveau_mode = st.selectbox(
                 "Mode",
                 [
@@ -553,10 +774,6 @@ if menu == "📚 Gestion des séances":
                 key="modif_mode"
             )
 
-            # ------------------------------------------------
-            # DISCIPLINES
-            # ------------------------------------------------
-
             nouvelle_disciplines = st.text_input(
                 "Discipline(s)",
                 value=str(
@@ -564,10 +781,6 @@ if menu == "📚 Gestion des séances":
                 ),
                 key="modif_disciplines"
             )
-
-            # ------------------------------------------------
-            # CONTENU
-            # ------------------------------------------------
 
             nouveau_contenu = st.text_area(
                 "Contenu",
@@ -577,10 +790,6 @@ if menu == "📚 Gestion des séances":
                 key="modif_contenu"
             )
 
-            # ------------------------------------------------
-            # TRAVAIL
-            # ------------------------------------------------
-
             nouveau_travail = st.text_area(
                 "Travail à faire",
                 value=str(
@@ -588,10 +797,6 @@ if menu == "📚 Gestion des séances":
                 ),
                 key="modif_travail"
             )
-
-            # ------------------------------------------------
-            # OBSERVATIONS
-            # ------------------------------------------------
 
             nouvelles_observations = st.text_area(
                 "Observations",
@@ -601,9 +806,10 @@ if menu == "📚 Gestion des séances":
                 key="modif_observations"
             )
 
-            # ------------------------------------------------
-            # SAUVEGARDE
-            # ------------------------------------------------
+
+            # =================================================
+            # SAUVEGARDE MODIFICATION
+            # =================================================
 
             if st.button(
                 "💾 Enregistrer les modifications",
@@ -634,19 +840,37 @@ if menu == "📚 Gestion des séances":
                 else:
 
                     modifications = {
-                        "date": nouvelle_date.isoformat(),
-                        "heure_debut": nouvelle_heure_debut.strftime(
-                            "%H:%M:%S"
-                        ),
-                        "heure_fin": nouvelle_heure_fin.strftime(
-                            "%H:%M:%S"
-                        ),
-                        "duree_minutes": duree_minutes,
-                        "mode": nouveau_mode,
-                        "disciplines": nouvelle_disciplines,
-                        "contenu": nouveau_contenu,
-                        "travail": nouveau_travail,
-                        "observations": nouvelles_observations
+
+                        "date":
+                            nouvelle_date.isoformat(),
+
+                        "heure_debut":
+                            nouvelle_heure_debut.strftime(
+                                "%H:%M:%S"
+                            ),
+
+                        "heure_fin":
+                            nouvelle_heure_fin.strftime(
+                                "%H:%M:%S"
+                            ),
+
+                        "duree_minutes":
+                            duree_minutes,
+
+                        "mode":
+                            nouveau_mode,
+
+                        "disciplines":
+                            nouvelle_disciplines,
+
+                        "contenu":
+                            nouveau_contenu,
+
+                        "travail":
+                            nouveau_travail,
+
+                        "observations":
+                            nouvelles_observations
                     }
 
                     try:
@@ -654,14 +878,39 @@ if menu == "📚 Gestion des séances":
                         (
                             supabase
                             .table("seances")
-                            .update(modifications)
-                            .eq("id", identifiant)
+                            .update(
+                                modifications
+                            )
+                            .eq(
+                                "id",
+                                identifiant
+                            )
                             .execute()
                         )
 
                         st.success(
                             "✅ Séance modifiée avec succès !"
                         )
+
+                        # ------------------------------------
+                        # GOOGLE DRIVE
+                        # ------------------------------------
+
+                        succes_drive, message_drive = (
+                            synchroniser_drive()
+                        )
+
+                        if succes_drive:
+
+                            st.success(
+                                f"☁️ {message_drive}"
+                            )
+
+                        else:
+
+                            st.warning(
+                                f"⚠️ {message_drive}"
+                            )
 
                         st.rerun()
 
@@ -680,7 +929,9 @@ if menu == "📚 Gestion des séances":
 
 elif menu == "📖 Cahier de texte":
 
-    st.header("📖 Cahier de texte")
+    st.header(
+        "📖 Cahier de texte"
+    )
 
     df = recuperer_seances()
 
@@ -699,13 +950,15 @@ elif menu == "📖 Cahier de texte":
         )
 
         df_eleve = df[
-            df["eleve"] == eleve_cahier
+            df["eleve"]
+            == eleve_cahier
         ].copy()
 
         if df_eleve.empty:
 
             st.info(
-                "Aucune séance enregistrée pour cet élève."
+                "Aucune séance enregistrée "
+                "pour cet élève."
             )
 
         else:
@@ -756,7 +1009,9 @@ elif menu == "📖 Cahier de texte":
 
 elif menu == "📊 Bilan":
 
-    st.header("📊 Bilan de l'élève")
+    st.header(
+        "📊 Bilan de l'élève"
+    )
 
     df = recuperer_seances()
 
@@ -775,7 +1030,8 @@ elif menu == "📊 Bilan":
         )
 
         df_eleve = df[
-            df["eleve"] == eleve_bilan
+            df["eleve"]
+            == eleve_bilan
         ].copy()
 
         if df_eleve.empty:
@@ -838,7 +1094,9 @@ elif menu == "📊 Bilan":
 
 elif menu == "🧾 Facturation":
 
-    st.header("🧾 Facturation")
+    st.header(
+        "🧾 Facturation"
+    )
 
     df = recuperer_seances()
 
@@ -850,19 +1108,11 @@ elif menu == "🧾 Facturation":
 
     else:
 
-        # ----------------------------------------------------
-        # ÉLÈVE
-        # ----------------------------------------------------
-
         eleve_facturation = st.selectbox(
             "Élève",
             ELEVES,
             key="facturation_eleve"
         )
-
-        # ----------------------------------------------------
-        # PÉRIODE
-        # ----------------------------------------------------
 
         type_periode = st.selectbox(
             "Période de facturation",
@@ -875,9 +1125,10 @@ elif menu == "🧾 Facturation":
             key="type_periode"
         )
 
-        # ----------------------------------------------------
+
+        # ====================================================
         # MENSUELLE
-        # ----------------------------------------------------
+        # ====================================================
 
         if type_periode == "Mensuelle":
 
@@ -918,9 +1169,10 @@ elif menu == "🧾 Facturation":
                 f"{mois_nom} {annee}"
             )
 
-        # ----------------------------------------------------
+
+        # ====================================================
         # HEBDOMADAIRE
-        # ----------------------------------------------------
+        # ====================================================
 
         elif type_periode == "Hebdomadaire":
 
@@ -948,13 +1200,16 @@ elif menu == "🧾 Facturation":
             ]
 
             periode_facture = (
-                f"du {date_debut.strftime('%d/%m/%Y')} "
-                f"au {date_fin.strftime('%d/%m/%Y')}"
+                f"du "
+                f"{date_debut.strftime('%d/%m/%Y')} "
+                f"au "
+                f"{date_fin.strftime('%d/%m/%Y')}"
             )
 
-        # ----------------------------------------------------
+
+        # ====================================================
         # PERSONNALISÉE
-        # ----------------------------------------------------
+        # ====================================================
 
         elif type_periode == "Personnalisée":
 
@@ -996,27 +1251,32 @@ elif menu == "🧾 Facturation":
                 ]
 
                 periode_facture = (
-                    f"du {date_debut.strftime('%d/%m/%Y')} "
-                    f"au {date_fin.strftime('%d/%m/%Y')}"
+                    f"du "
+                    f"{date_debut.strftime('%d/%m/%Y')} "
+                    f"au "
+                    f"{date_fin.strftime('%d/%m/%Y')}"
                 )
 
-        # ----------------------------------------------------
+
+        # ====================================================
         # TOUTES LES SÉANCES
-        # ----------------------------------------------------
+        # ====================================================
 
         else:
 
             df_filtre = df[
-                df["eleve"] == eleve_facturation
+                df["eleve"]
+                == eleve_facturation
             ].copy()
 
             periode_facture = (
                 "Toutes les séances"
             )
 
-        # ----------------------------------------------------
+
+        # ====================================================
         # RÉSULTAT
-        # ----------------------------------------------------
+        # ====================================================
 
         if df_filtre.empty:
 
@@ -1055,10 +1315,6 @@ elif menu == "🧾 Facturation":
                     f"{total_heures:.2f} h"
                 )
 
-            # ------------------------------------------------
-            # TARIF
-            # ------------------------------------------------
-
             tarif = st.number_input(
                 "Tarif horaire (€)",
                 min_value=0.0,
@@ -1068,7 +1324,8 @@ elif menu == "🧾 Facturation":
             )
 
             montant = (
-                total_heures * tarif
+                total_heures
+                * tarif
             )
 
             st.metric(
@@ -1076,9 +1333,10 @@ elif menu == "🧾 Facturation":
                 f"{montant:.2f} €"
             )
 
-            # ------------------------------------------------
+
+            # =================================================
             # DÉTAIL
-            # ------------------------------------------------
+            # =================================================
 
             st.subheader(
                 "Détail des séances"
@@ -1097,6 +1355,7 @@ elif menu == "🧾 Facturation":
                 ],
                 use_container_width=True
             )
+
 
             # =================================================
             # FACTURE PDF
@@ -1121,9 +1380,17 @@ elif menu == "🧾 Facturation":
 
             numero_facture = st.text_input(
                 "Numéro de facture",
-                value=f"FAC-{date.today().strftime('%Y%m%d')}",
+                value=(
+                    f"FAC-"
+                    f"{date.today().strftime('%Y%m%d')}"
+                ),
                 key="numero_facture"
             )
+
+
+            # =================================================
+            # GÉNÉRATION PDF
+            # =================================================
 
             if st.button(
                 "📄 Générer la facture PDF",
@@ -1131,8 +1398,6 @@ elif menu == "🧾 Facturation":
             ):
 
                 try:
-
-                    from io import BytesIO
 
                     from reportlab.lib.pagesizes import A4
 
@@ -1153,10 +1418,6 @@ elif menu == "🧾 Facturation":
                     from reportlab.lib.units import cm
 
 
-                    # -----------------------------------------
-                    # DOCUMENT
-                    # -----------------------------------------
-
                     buffer = BytesIO()
 
                     document = SimpleDocTemplate(
@@ -1168,7 +1429,9 @@ elif menu == "🧾 Facturation":
                         bottomMargin=1.5 * cm
                     )
 
-                    styles = getSampleStyleSheet()
+                    styles = (
+                        getSampleStyleSheet()
+                    )
 
                     elements = []
 
@@ -1211,24 +1474,29 @@ elif menu == "🧾 Facturation":
                     # -----------------------------------------
 
                     informations = [
+
                         [
                             "Numéro de facture",
                             numero_facture
                         ],
+
                         [
                             "Date",
                             date.today().strftime(
                                 "%d/%m/%Y"
                             )
                         ],
+
                         [
                             "Famille",
                             nom_facture
                         ],
+
                         [
                             "Élève",
                             eleve_facturation
                         ],
+
                         [
                             "Période",
                             periode_facture
@@ -1243,6 +1511,7 @@ elif menu == "🧾 Facturation":
                                 adresse_facture
                             ]
                         )
+
 
                     table_info = Table(
                         informations,
@@ -1262,18 +1531,21 @@ elif menu == "🧾 Facturation":
                                     0.5,
                                     colors.grey
                                 ),
+
                                 (
                                     "BACKGROUND",
                                     (0, 0),
                                     (0, -1),
                                     colors.lightgrey
                                 ),
+
                                 (
                                     "VALIGN",
                                     (0, 0),
                                     (-1, -1),
                                     "TOP"
                                 ),
+
                                 (
                                     "PADDING",
                                     (0, 0),
@@ -1297,10 +1569,11 @@ elif menu == "🧾 Facturation":
 
 
                     # -----------------------------------------
-                    # TABLEAU DES SÉANCES
+                    # TABLEAU SÉANCES
                     # -----------------------------------------
 
                     donnees_facture = [
+
                         [
                             "Date",
                             "Horaire",
@@ -1309,10 +1582,14 @@ elif menu == "🧾 Facturation":
                         ]
                     ]
 
-                    for _, ligne in df_filtre.iterrows():
+                    for _, ligne in (
+                        df_filtre.iterrows()
+                    ):
 
                         duree = float(
-                            ligne["duree_minutes"]
+                            ligne[
+                                "duree_minutes"
+                            ]
                         )
 
                         duree_heures = (
@@ -1321,6 +1598,7 @@ elif menu == "🧾 Facturation":
 
                         donnees_facture.append(
                             [
+
                                 pd.to_datetime(
                                     ligne["date"]
                                 ).strftime(
@@ -1328,12 +1606,15 @@ elif menu == "🧾 Facturation":
                                 ),
 
                                 (
-                                    f"{ligne['heure_debut']} - "
+                                    f"{ligne['heure_debut']} "
+                                    f"- "
                                     f"{ligne['heure_fin']}"
                                 ),
 
                                 str(
-                                    ligne["disciplines"]
+                                    ligne[
+                                        "disciplines"
+                                    ]
                                 ),
 
                                 f"{duree_heures:.2f} h"
@@ -1362,30 +1643,35 @@ elif menu == "🧾 Facturation":
                                     0.5,
                                     colors.grey
                                 ),
+
                                 (
                                     "BACKGROUND",
                                     (0, 0),
                                     (-1, 0),
                                     colors.lightgrey
                                 ),
+
                                 (
                                     "FONTNAME",
                                     (0, 0),
                                     (-1, 0),
                                     "Helvetica-Bold"
                                 ),
+
                                 (
                                     "ALIGN",
                                     (-1, 1),
                                     (-1, -1),
                                     "RIGHT"
                                 ),
+
                                 (
                                     "VALIGN",
                                     (0, 0),
                                     (-1, -1),
                                     "MIDDLE"
                                 ),
+
                                 (
                                     "PADDING",
                                     (0, 0),
@@ -1414,18 +1700,22 @@ elif menu == "🧾 Facturation":
 
                     total_table = Table(
                         [
+
                             [
                                 "Total des heures",
                                 f"{total_heures:.2f} h"
                             ],
+
                             [
                                 "Tarif horaire",
                                 f"{tarif:.2f} €"
                             ],
+
                             [
                                 "TOTAL À PAYER",
                                 f"{montant:.2f} €"
                             ]
+
                         ],
                         colWidths=[
                             11 * cm,
@@ -1436,6 +1726,7 @@ elif menu == "🧾 Facturation":
                     total_table.setStyle(
                         TableStyle(
                             [
+
                                 (
                                     "GRID",
                                     (0, 0),
@@ -1443,24 +1734,28 @@ elif menu == "🧾 Facturation":
                                     0.5,
                                     colors.grey
                                 ),
+
                                 (
                                     "ALIGN",
                                     (1, 0),
                                     (1, -1),
                                     "RIGHT"
                                 ),
+
                                 (
                                     "FONTNAME",
                                     (0, 2),
                                     (-1, 2),
                                     "Helvetica-Bold"
                                 ),
+
                                 (
                                     "FONTSIZE",
                                     (0, 2),
                                     (-1, 2),
                                     12
                                 ),
+
                                 (
                                     "PADDING",
                                     (0, 0),
@@ -1483,10 +1778,6 @@ elif menu == "🧾 Facturation":
                     )
 
 
-                    # -----------------------------------------
-                    # MESSAGE FINAL
-                    # -----------------------------------------
-
                     elements.append(
                         Paragraph(
                             "Merci pour votre confiance.",
@@ -1505,17 +1796,15 @@ elif menu == "🧾 Facturation":
 
                     buffer.seek(0)
 
-
-                    # -----------------------------------------
-                    # TÉLÉCHARGEMENT
-                    # -----------------------------------------
-
                     st.success(
                         "✅ Facture PDF générée !"
                     )
 
                     st.download_button(
-                        label="⬇️ Télécharger la facture PDF",
+                        label=(
+                            "⬇️ Télécharger "
+                            "la facture PDF"
+                        ),
 
                         data=buffer,
 
@@ -1536,9 +1825,8 @@ elif menu == "🧾 Facturation":
                     )
 
                     st.info(
-                        "Ajoutez 'reportlab' dans "
-                        "requirements.txt puis faites "
-                        "un commit."
+                        "Ajoutez reportlab dans "
+                        "requirements.txt."
                     )
 
 
@@ -1550,3 +1838,8 @@ elif menu == "🧾 Facturation":
                     )
 
                     st.write(e)
+
+
+# ============================================================
+# FIN
+# ============================================================
