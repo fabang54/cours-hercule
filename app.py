@@ -6,6 +6,18 @@ from datetime import date, time
 from io import BytesIO
 import io
 
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle
+)
+
 
 # ============================================================
 # CONFIGURATION
@@ -221,7 +233,6 @@ def sauvegarder_dans_drive(df):
 
     service = obtenir_service_drive()
 
-
     # --------------------------------------------------------
     # RECHERCHE DU DOSSIER
     # --------------------------------------------------------
@@ -246,7 +257,6 @@ def sauvegarder_dans_drive(df):
         "files",
         []
     )
-
 
     # --------------------------------------------------------
     # CRÉATION DU DOSSIER
@@ -273,7 +283,6 @@ def sauvegarder_dans_drive(df):
 
         dossier_id = dossier["id"]
 
-
     # --------------------------------------------------------
     # CSV
     # --------------------------------------------------------
@@ -285,7 +294,6 @@ def sauvegarder_dans_drive(df):
         mimetype="text/csv",
         resumable=False
     )
-
 
     # --------------------------------------------------------
     # RECHERCHE SEANCES.CSV
@@ -311,7 +319,6 @@ def sauvegarder_dans_drive(df):
         []
     )
 
-
     # --------------------------------------------------------
     # MISE À JOUR
     # --------------------------------------------------------
@@ -330,7 +337,6 @@ def sauvegarder_dans_drive(df):
         )
 
         return "mis à jour"
-
 
     # --------------------------------------------------------
     # CRÉATION
@@ -386,6 +392,403 @@ def synchroniser_drive():
 
 
 # ============================================================
+# GÉNÉRATION FACTURE PDF
+# ============================================================
+
+def generer_facture_pdf(
+    df_eleve,
+    eleve,
+    tarif,
+    numero_facture
+):
+
+    buffer = BytesIO()
+
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40
+    )
+
+    styles = getSampleStyleSheet()
+
+    titre = ParagraphStyle(
+        "TitreFacture",
+        parent=styles["Title"],
+        alignment=TA_CENTER,
+        fontSize=20,
+        spaceAfter=20
+    )
+
+    normal = ParagraphStyle(
+        "NormalFacture",
+        parent=styles["Normal"],
+        fontSize=10,
+        leading=14
+    )
+
+    droite = ParagraphStyle(
+        "Droite",
+        parent=normal,
+        alignment=TA_RIGHT
+    )
+
+    elements = []
+
+    # --------------------------------------------------------
+    # TITRE
+    # --------------------------------------------------------
+
+    elements.append(
+        Paragraph(
+            "COURS HERCULE",
+            titre
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            f"<b>FACTURE N° {numero_facture}</b>",
+            normal
+        )
+    )
+
+    elements.append(
+        Spacer(1, 15)
+    )
+
+    # --------------------------------------------------------
+    # INFORMATIONS
+    # --------------------------------------------------------
+
+    date_facture = date.today().strftime(
+        "%d/%m/%Y"
+    )
+
+    informations = [
+        [
+            Paragraph(
+                "<b>Élève</b>",
+                normal
+            ),
+            Paragraph(
+                str(eleve),
+                normal
+            )
+        ],
+        [
+            Paragraph(
+                "<b>Date de facture</b>",
+                normal
+            ),
+            Paragraph(
+                date_facture,
+                normal
+            )
+        ],
+        [
+            Paragraph(
+                "<b>Tarif horaire</b>",
+                normal
+            ),
+            Paragraph(
+                f"{tarif:.2f} €",
+                normal
+            )
+        ]
+    ]
+
+    table_info = Table(
+        informations,
+        colWidths=[130, 350]
+    )
+
+    table_info.setStyle(
+        TableStyle([
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey
+            ),
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "TOP"
+            ),
+            (
+                "BACKGROUND",
+                (0, 0),
+                (0, -1),
+                colors.whitesmoke
+            ),
+            (
+                "LEFTPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+            (
+                "RIGHTPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                6
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                6
+            )
+        ])
+    )
+
+    elements.append(
+        table_info
+    )
+
+    elements.append(
+        Spacer(1, 20)
+    )
+
+    # --------------------------------------------------------
+    # TABLE DES SÉANCES
+    # --------------------------------------------------------
+
+    donnees_table = [
+        [
+            "Date",
+            "Horaire",
+            "Discipline",
+            "Durée",
+            "Montant"
+        ]
+    ]
+
+    total_minutes = 0
+
+    for _, ligne in df_eleve.iterrows():
+
+        duree = pd.to_numeric(
+            ligne.get("duree_minutes"),
+            errors="coerce"
+        )
+
+        if pd.isna(duree):
+            duree = 0
+
+        total_minutes += float(duree)
+
+        heures = float(duree) / 60
+
+        montant = heures * tarif
+
+        date_ligne = str(
+            ligne.get("date", "")
+        )
+
+        heure_debut = str(
+            ligne.get("heure_debut", "")
+        )
+
+        heure_fin = str(
+            ligne.get("heure_fin", "")
+        )
+
+        discipline = str(
+            ligne.get("disciplines", "")
+        )
+
+        donnees_table.append(
+            [
+                date_ligne,
+                f"{heure_debut} - {heure_fin}",
+                discipline,
+                f"{heures:.2f} h",
+                f"{montant:.2f} €"
+            ]
+        )
+
+    table_seances = Table(
+        donnees_table,
+        colWidths=[
+            70,
+            100,
+            130,
+            65,
+            75
+        ],
+        repeatRows=1
+    )
+
+    table_seances.setStyle(
+        TableStyle([
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey
+            ),
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, 0),
+                colors.lightgrey
+            ),
+            (
+                "FONTNAME",
+                (0, 0),
+                (-1, 0),
+                "Helvetica-Bold"
+            ),
+            (
+                "ALIGN",
+                (3, 1),
+                (-1, -1),
+                "RIGHT"
+            ),
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
+            ),
+            (
+                "FONTSIZE",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            )
+        ])
+    )
+
+    elements.append(
+        table_seances
+    )
+
+    elements.append(
+        Spacer(1, 20)
+    )
+
+    # --------------------------------------------------------
+    # TOTAL
+    # --------------------------------------------------------
+
+    total_heures = total_minutes / 60
+
+    total = total_heures * tarif
+
+    total_table = Table(
+        [
+            [
+                Paragraph(
+                    "<b>Total des heures</b>",
+                    normal
+                ),
+                Paragraph(
+                    f"<b>{total_heures:.2f} h</b>",
+                    droite
+                )
+            ],
+            [
+                Paragraph(
+                    "<b>TOTAL À PAYER</b>",
+                    normal
+                ),
+                Paragraph(
+                    f"<b>{total:.2f} €</b>",
+                    droite
+                )
+            ]
+        ],
+        colWidths=[350, 130]
+    )
+
+    total_table.setStyle(
+        TableStyle([
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey
+            ),
+            (
+                "BACKGROUND",
+                (0, 1),
+                (-1, 1),
+                colors.whitesmoke
+            ),
+            (
+                "ALIGN",
+                (1, 0),
+                (1, -1),
+                "RIGHT"
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                8
+            )
+        ])
+    )
+
+    elements.append(
+        total_table
+    )
+
+    elements.append(
+        Spacer(1, 30)
+    )
+
+    elements.append(
+        Paragraph(
+            "Merci pour votre confiance.",
+            normal
+        )
+    )
+
+    document.build(
+        elements
+    )
+
+    buffer.seek(0)
+
+    return buffer.getvalue()
+
+
+# ============================================================
 # TITRE
 # ============================================================
 
@@ -413,7 +816,9 @@ menu = st.sidebar.radio(
 
 if menu == "📚 Gestion des séances":
 
-    st.header("📚 Gestion des séances")
+    st.header(
+        "📚 Gestion des séances"
+    )
 
     action = st.radio(
         "Action",
@@ -431,8 +836,9 @@ if menu == "📚 Gestion des séances":
 
     if action == "➕ Nouvelle séance":
 
-        st.subheader("➕ Nouvelle séance")
-
+        st.subheader(
+            "➕ Nouvelle séance"
+        )
 
         # ----------------------------------------------------
         # ÉLÈVE
@@ -440,19 +846,23 @@ if menu == "📚 Gestion des séances":
 
         eleve = st.selectbox(
             "Élève",
-            ELEVES
+            ELEVES,
+            key="nouvelle_eleve"
         )
-
 
         # ----------------------------------------------------
         # DATE
         # ----------------------------------------------------
 
         date_seance = st.date_input(
-            "Date",
-            value=date.today()
+            "Date *",
+            value=date.today(),
+            key="nouvelle_date"
         )
 
+        st.caption(
+            "* La date est le seul champ obligatoire."
+        )
 
         # ----------------------------------------------------
         # HEURES
@@ -460,14 +870,15 @@ if menu == "📚 Gestion des séances":
 
         heure_debut = st.time_input(
             "Heure de début",
-            value=time(14, 0)
+            value=time(14, 0),
+            key="nouvelle_heure_debut"
         )
 
         heure_fin = st.time_input(
             "Heure de fin",
-            value=time(15, 0)
+            value=time(15, 0),
+            key="nouvelle_heure_fin"
         )
-
 
         # ----------------------------------------------------
         # MODE
@@ -478,9 +889,9 @@ if menu == "📚 Gestion des séances":
             [
                 "Présentiel",
                 "Distanciel"
-            ]
+            ],
+            key="nouvelle_mode"
         )
-
 
         # ----------------------------------------------------
         # DISCIPLINE
@@ -489,9 +900,9 @@ if menu == "📚 Gestion des séances":
         disciplines = st.multiselect(
             "Discipline(s)",
             DISCIPLINES,
-            default=["Mathématiques"]
+            default=["Mathématiques"],
+            key="nouvelle_disciplines"
         )
-
 
         # ----------------------------------------------------
         # CONTENU
@@ -499,11 +910,13 @@ if menu == "📚 Gestion des séances":
 
         contenu_selection = st.multiselect(
             "Contenu",
-            CONTENUS
+            CONTENUS,
+            key="nouvelle_contenu_selection"
         )
 
         contenu_manuel = st.text_area(
-            "Précisions / contenu supplémentaire"
+            "Précisions / contenu supplémentaire",
+            key="nouvelle_contenu_manuel"
         )
 
         contenu = ", ".join(
@@ -517,22 +930,22 @@ if menu == "📚 Gestion des séances":
 
             contenu += contenu_manuel.strip()
 
-
         # ----------------------------------------------------
         # TRAVAIL
         # ----------------------------------------------------
 
         travail = st.selectbox(
             "Travail à faire",
-            TRAVAUX
+            TRAVAUX,
+            key="nouvelle_travail"
         )
 
         if travail == "Autre":
 
             travail = st.text_input(
-                "Préciser"
+                "Préciser",
+                key="nouvelle_travail_autre"
             )
-
 
         # ----------------------------------------------------
         # OBSERVATIONS
@@ -541,11 +954,13 @@ if menu == "📚 Gestion des séances":
         observations = st.multiselect(
             "Observations",
             OBSERVATIONS,
-            default=["Élève attentif"]
+            default=["Élève attentif"],
+            key="nouvelle_observations"
         )
 
         observation_manuel = st.text_area(
-            "Observations supplémentaires"
+            "Observations supplémentaires",
+            key="nouvelle_observation_manuel"
         )
 
         observations_finales = ", ".join(
@@ -560,7 +975,6 @@ if menu == "📚 Gestion des séances":
             observations_finales += (
                 observation_manuel.strip()
             )
-
 
         # ====================================================
         # ENREGISTREMENT
@@ -587,12 +1001,9 @@ if menu == "📚 Gestion des séances":
 
             duree = fin - debut
 
-            # Si l'heure n'est pas renseignée
-            # ou si elle est incohérente,
-            # on ne bloque pas l'enregistrement.
             if duree <= 0:
-                duree = None
 
+                duree = None
 
             # ------------------------------------------------
             # DONNÉES
@@ -636,9 +1047,8 @@ if menu == "📚 Gestion des séances":
                     observations_finales
             }
 
-
             # ------------------------------------------------
-            # SUPABASE
+            # ENREGISTREMENT SUPABASE
             # ------------------------------------------------
 
             try:
@@ -656,7 +1066,6 @@ if menu == "📚 Gestion des séances":
                     "✅ Séance enregistrée dans Supabase."
                 )
 
-
                 # --------------------------------------------
                 # GOOGLE DRIVE
                 # --------------------------------------------
@@ -673,8 +1082,33 @@ if menu == "📚 Gestion des séances":
 
                     st.warning(message)
 
-                st.rerun()
+                # --------------------------------------------
+                # RÉINITIALISATION
+                # --------------------------------------------
 
+                cles_formulaire = [
+                    "nouvelle_eleve",
+                    "nouvelle_date",
+                    "nouvelle_heure_debut",
+                    "nouvelle_heure_fin",
+                    "nouvelle_mode",
+                    "nouvelle_disciplines",
+                    "nouvelle_contenu_selection",
+                    "nouvelle_contenu_manuel",
+                    "nouvelle_travail",
+                    "nouvelle_travail_autre",
+                    "nouvelle_observations",
+                    "nouvelle_observation_manuel"
+                ]
+
+                for cle in cles_formulaire:
+
+                    st.session_state.pop(
+                        cle,
+                        None
+                    )
+
+                st.rerun()
 
             except Exception as e:
 
@@ -747,14 +1181,12 @@ if menu == "📚 Gestion des séances":
 
             identifiant = ligne["id"]
 
-
             nouvelle_date = st.date_input(
                 "Date",
                 value=pd.to_datetime(
                     ligne["date"]
                 ).date()
             )
-
 
             heure_debut = st.time_input(
                 "Heure de début",
@@ -770,7 +1202,6 @@ if menu == "📚 Gestion des séances":
                 ).time()
             )
 
-
             mode = st.selectbox(
                 "Mode",
                 [
@@ -785,14 +1216,12 @@ if menu == "📚 Gestion des séances":
                 )
             )
 
-
             disciplines = st.text_input(
                 "Discipline(s)",
                 value=str(
                     ligne["disciplines"]
                 )
             )
-
 
             contenu = st.text_area(
                 "Contenu",
@@ -801,7 +1230,6 @@ if menu == "📚 Gestion des séances":
                 )
             )
 
-
             travail = st.text_area(
                 "Travail à faire",
                 value=str(
@@ -809,14 +1237,12 @@ if menu == "📚 Gestion des séances":
                 )
             )
 
-
             observations = st.text_area(
                 "Observations",
                 value=str(
                     ligne["observations"]
                 )
             )
-
 
             if st.button(
                 "💾 Enregistrer les modifications",
@@ -836,8 +1262,8 @@ if menu == "📚 Gestion des séances":
                 duree = fin - debut
 
                 if duree <= 0:
-                    duree = None
 
+                    duree = None
 
                 modifications = {
 
@@ -873,7 +1299,6 @@ if menu == "📚 Gestion des séances":
                         observations
                 }
 
-
                 try:
 
                     (
@@ -893,7 +1318,6 @@ if menu == "📚 Gestion des séances":
                         "✅ Séance modifiée."
                     )
 
-
                     ok, message = (
                         synchroniser_drive()
                     )
@@ -907,7 +1331,6 @@ if menu == "📚 Gestion des séances":
                         st.warning(message)
 
                     st.rerun()
-
 
                 except Exception as e:
 
@@ -1075,10 +1498,18 @@ elif menu == "🧾 Facturation":
 
     else:
 
+        # ----------------------------------------------------
+        # ÉLÈVE
+        # ----------------------------------------------------
+
         eleve = st.selectbox(
             "Élève",
             ELEVES
         )
+
+        # ----------------------------------------------------
+        # TARIF
+        # ----------------------------------------------------
 
         tarif = st.number_input(
             "Tarif horaire (€)",
@@ -1087,36 +1518,145 @@ elif menu == "🧾 Facturation":
             step=1.0
         )
 
+        # ----------------------------------------------------
+        # FILTRE ÉLÈVE
+        # ----------------------------------------------------
+
         df_eleve = df[
             df["eleve"] == eleve
         ].copy()
 
-        total_minutes = pd.to_numeric(
-            df_eleve[
-                "duree_minutes"
-            ],
-            errors="coerce"
-        ).fillna(0).sum()
+        if df_eleve.empty:
 
-        total_heures = (
-            total_minutes / 60
-        )
+            st.info(
+                "Aucune séance pour cet élève."
+            )
 
-        montant = (
-            total_heures * tarif
-        )
+        else:
 
-        st.metric(
-            "Heures",
-            f"{total_heures:.2f} h"
-        )
+            # ------------------------------------------------
+            # CALCUL
+            # ------------------------------------------------
 
-        st.metric(
-            "Montant",
-            f"{montant:.2f} €"
-        )
+            df_eleve["duree_minutes"] = pd.to_numeric(
+                df_eleve["duree_minutes"],
+                errors="coerce"
+            ).fillna(0)
 
-        st.dataframe(
-            df_eleve,
-            use_container_width=True
-        )
+            total_minutes = (
+                df_eleve["duree_minutes"].sum()
+            )
+
+            total_heures = (
+                total_minutes / 60
+            )
+
+            montant = (
+                total_heures * tarif
+            )
+
+            # ------------------------------------------------
+            # AFFICHAGE
+            # ------------------------------------------------
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+
+                st.metric(
+                    "Nombre de séances",
+                    len(df_eleve)
+                )
+
+            with col2:
+
+                st.metric(
+                    "Heures",
+                    f"{total_heures:.2f} h"
+                )
+
+            with col3:
+
+                st.metric(
+                    "Montant",
+                    f"{montant:.2f} €"
+                )
+
+            st.subheader(
+                "📋 Séances facturées"
+            )
+
+            st.dataframe(
+                df_eleve,
+                use_container_width=True
+            )
+
+            # ------------------------------------------------
+            # NUMÉRO FACTURE
+            # ------------------------------------------------
+
+            numero_facture = st.text_input(
+                "Numéro de facture",
+                value=(
+                    f"CH-"
+                    f"{date.today().strftime('%Y%m%d')}-"
+                    f"{eleve.upper()}"
+                )
+            )
+
+            # ------------------------------------------------
+            # GÉNÉRER PDF
+            # ------------------------------------------------
+
+            if st.button(
+                "🧾 Générer la facture PDF",
+                type="primary"
+            ):
+
+                try:
+
+                    pdf = generer_facture_pdf(
+                        df_eleve,
+                        eleve,
+                        tarif,
+                        numero_facture
+                    )
+
+                    st.session_state[
+                        "facture_pdf"
+                    ] = pdf
+
+                    st.success(
+                        "✅ Facture PDF générée."
+                    )
+
+                except Exception as e:
+
+                    st.error(
+                        "❌ Erreur lors de la génération "
+                        "de la facture PDF."
+                    )
+
+                    st.code(
+                        str(e)
+                    )
+
+            # ------------------------------------------------
+            # TÉLÉCHARGEMENT
+            # ------------------------------------------------
+
+            if "facture_pdf" in st.session_state:
+
+                st.download_button(
+                    label="📥 Télécharger la facture PDF",
+                    data=st.session_state[
+                        "facture_pdf"
+                    ],
+                    file_name=(
+                        f"Facture_"
+                        f"{eleve}_"
+                        f"{date.today().strftime('%Y%m%d')}"
+                        f".pdf"
+                    ),
+                    mime="application/pdf"
+                )
