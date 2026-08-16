@@ -124,6 +124,62 @@ st.divider()
 
 
 # =========================
+# ENSEIGNANT
+# =========================
+
+st.header("👨‍🏫 Votre enseignant")
+
+st.subheader(
+    "Enseignant certifié en mathématiques (CAPES)"
+)
+
+st.write(
+    """
+    Titulaire d'un **Master MEEF**, enseignant expérimenté
+    en mathématiques, j'accompagne les élèves du
+    **collège au lycée**, ainsi que les étudiants en **BTS**.
+
+    Mon objectif est de permettre à chaque élève de
+    **comprendre les notions, acquérir des méthodes efficaces
+    et progresser durablement**, avec un accompagnement
+    adapté à son niveau et à ses objectifs.
+    """
+)
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown("### 🎓 Formation")
+    st.write(
+        """
+        • Master MEEF
+        • CAPES de mathématiques
+        """
+    )
+
+with col2:
+    st.markdown("### 📚 Niveaux")
+    st.write(
+        """
+        • Collège
+        • Lycée
+        • BTS
+        """
+    )
+
+with col3:
+    st.markdown("### 📐 Spécialité")
+    st.write(
+        """
+        • Mathématiques
+        • Accompagnement personnalisé
+        """
+    )
+
+st.divider()
+
+
+# =========================
 # CONTACT
 # =========================
 
@@ -149,13 +205,9 @@ st.markdown(
     """
 )
 
-st.write(
-    "N'hésitez pas à nous contacter pour obtenir un premier renseignement."
-)
-
 
 # =========================
-# EMAIL DE LA BOÎTE
+# EMAIL
 # =========================
 
 st.subheader("✉️ Écrivez-nous")
@@ -164,6 +216,10 @@ st.markdown(
     """
     📧 **TON_ADRESSE_EMAIL**
     """
+)
+
+st.write(
+    "N'hésitez pas à nous contacter pour obtenir un premier renseignement."
 )
 
 st.divider()
@@ -181,7 +237,6 @@ st.write(
     téléphone ou adresse e-mail.
     """
 )
-
 
 if "contact_envoye" not in st.session_state:
     st.session_state.contact_envoye = False
