@@ -152,12 +152,12 @@ with col1:
     st.markdown("### 🎓 Formation")
     st.write(
         """
-        • Master MEEF (Métiers de l'Enseignement,
-  de l'Éducation et de la Formation)
+        • Master MEEF  
+        *Métiers de l'Enseignement, de l'Éducation et de la Formation*
+
         • CAPES de mathématiques
         """
     )
-
 with col2:
     st.markdown("### 📚 Niveaux")
     st.write(
