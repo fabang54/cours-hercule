@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 
 st.set_page_config(
@@ -142,29 +141,23 @@ st.write(
 # APPEL DIRECT
 # =========================
 
-col1, col2 = st.columns([1, 2])
+st.subheader("📞 Appelez-nous directement")
 
-with col1:
+st.markdown(
+    """
+    ## **06 XX XX XX XX**
+    """
+)
 
-    st.subheader("📞 Appelez-nous")
-
-with col2:
-
-    st.markdown(
-        """
-        ### **06 XX XX XX XX**
-
-        N'hésitez pas à appeler pour obtenir
-        un premier renseignement.
-        """
-    )
-
+st.write(
+    "N'hésitez pas à appeler pour obtenir un premier renseignement."
+)
 
 st.divider()
 
 
 # =========================
-# ÊTRE RECONTACTÉ
+# FORMULAIRE
 # =========================
 
 st.subheader("📩 Vous préférez être recontacté(e) ?")
@@ -172,14 +165,12 @@ st.subheader("📩 Vous préférez être recontacté(e) ?")
 st.write(
     """
     Laissez simplement votre prénom et votre numéro
-    de téléphone. Vous pourrez également préciser
-    votre demande si vous le souhaitez.
+    de téléphone.
     """
 )
 
 
 if "contact_envoye" not in st.session_state:
-
     st.session_state.contact_envoye = False
 
 
@@ -193,7 +184,6 @@ if st.session_state.contact_envoye:
     if st.button("Nouvelle demande"):
 
         st.session_state.contact_envoye = False
-
         st.rerun()
 
 
@@ -212,16 +202,13 @@ else:
         )
 
         message = st.text_area(
-            "Votre message (facultatif)",
-            placeholder=(
-                "Quelques mots sur votre demande..."
-            )
+            "Votre message",
+            placeholder="Quelques mots sur votre demande..."
         )
 
         envoyer = st.form_submit_button(
             "📨 Être recontacté(e)"
         )
-
 
         if envoyer:
 
@@ -239,17 +226,7 @@ else:
 
             else:
 
-                # ------------------------------------------------
-                # POUR LE MOMENT :
-                # on confirme simplement la demande.
-                #
-                # L'enregistrement Supabase et l'envoi
-                # automatique d'un e-mail seront ajoutés
-                # ensuite.
-                # ------------------------------------------------
-
                 st.session_state.contact_envoye = True
-
                 st.rerun()
 
 
@@ -262,7 +239,6 @@ st.caption(
     "pour répondre à votre demande."
 )
 
-
 st.divider()
 
 
@@ -273,4 +249,3 @@ st.divider()
 st.caption(
     "Cours Hercule — Accompagnement scolaire personnalisé"
 )
-```
