@@ -130,7 +130,7 @@ st.divider()
 st.header("👨‍🏫 Votre enseignant")
 
 st.subheader(
-    "Enseignant certifié en mathématiques (CAPES)"
+    "Enseignant en mathématiques (CAPES)"
 )
 
 st.write(
