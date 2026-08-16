@@ -233,10 +233,6 @@ def sauvegarder_dans_drive(df):
 
     service = obtenir_service_drive()
 
-    # --------------------------------------------------------
-    # RECHERCHE DU DOSSIER
-    # --------------------------------------------------------
-
     resultat = (
         service.files()
         .list(
@@ -257,10 +253,6 @@ def sauvegarder_dans_drive(df):
         "files",
         []
     )
-
-    # --------------------------------------------------------
-    # CRÉATION DU DOSSIER
-    # --------------------------------------------------------
 
     if dossiers:
 
@@ -283,10 +275,6 @@ def sauvegarder_dans_drive(df):
 
         dossier_id = dossier["id"]
 
-    # --------------------------------------------------------
-    # CSV
-    # --------------------------------------------------------
-
     contenu_csv = dataframe_csv_bytes(df)
 
     media = MediaIoBaseUpload(
@@ -294,10 +282,6 @@ def sauvegarder_dans_drive(df):
         mimetype="text/csv",
         resumable=False
     )
-
-    # --------------------------------------------------------
-    # RECHERCHE SEANCES.CSV
-    # --------------------------------------------------------
 
     resultat = (
         service.files()
@@ -319,10 +303,6 @@ def sauvegarder_dans_drive(df):
         []
     )
 
-    # --------------------------------------------------------
-    # MISE À JOUR
-    # --------------------------------------------------------
-
     if fichiers:
 
         fichier_id = fichiers[0]["id"]
@@ -337,10 +317,6 @@ def sauvegarder_dans_drive(df):
         )
 
         return "mis à jour"
-
-    # --------------------------------------------------------
-    # CRÉATION
-    # --------------------------------------------------------
 
     (
         service.files()
@@ -399,7 +375,10 @@ def generer_facture_pdf(
     df_eleve,
     eleve,
     tarif,
-    numero_facture
+    numero_facture,
+    periode,
+    statut,
+    date_paiement
 ):
 
     buffer = BytesIO()
@@ -407,10 +386,10 @@ def generer_facture_pdf(
     document = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        rightMargin=40,
-        leftMargin=40,
-        topMargin=40,
-        bottomMargin=40
+        rightMargin=35,
+        leftMargin=35,
+        topMargin=35,
+        bottomMargin=35
     )
 
     styles = getSampleStyleSheet()
@@ -438,9 +417,9 @@ def generer_facture_pdf(
 
     elements = []
 
-    # --------------------------------------------------------
+    # ========================================================
     # TITRE
-    # --------------------------------------------------------
+    # ========================================================
 
     elements.append(
         Paragraph(
@@ -457,56 +436,42 @@ def generer_facture_pdf(
     )
 
     elements.append(
-        Spacer(1, 15)
+        Spacer(1, 12)
     )
 
-    # --------------------------------------------------------
-    # INFORMATIONS
-    # --------------------------------------------------------
+    # ========================================================
+    # INFORMATIONS FACTURE
+    # ========================================================
 
     date_facture = date.today().strftime(
         "%d/%m/%Y"
     )
 
-    informations = [
+    infos = [
         [
-            Paragraph(
-                "<b>Élève</b>",
-                normal
-            ),
-            Paragraph(
-                str(eleve),
-                normal
-            )
+            Paragraph("<b>Élève</b>", normal),
+            Paragraph(str(eleve), normal)
         ],
         [
-            Paragraph(
-                "<b>Date de facture</b>",
-                normal
-            ),
-            Paragraph(
-                date_facture,
-                normal
-            )
+            Paragraph("<b>Date de facture</b>", normal),
+            Paragraph(date_facture, normal)
         ],
         [
-            Paragraph(
-                "<b>Tarif horaire</b>",
-                normal
-            ),
-            Paragraph(
-                f"{tarif:.2f} €",
-                normal
-            )
+            Paragraph("<b>Période facturée</b>", normal),
+            Paragraph(periode, normal)
+        ],
+        [
+            Paragraph("<b>Tarif horaire</b>", normal),
+            Paragraph(f"{tarif:.2f} €", normal)
         ]
     ]
 
-    table_info = Table(
-        informations,
-        colWidths=[130, 350]
+    table_infos = Table(
+        infos,
+        colWidths=[150, 330]
     )
 
-    table_info.setStyle(
+    table_infos.setStyle(
         TableStyle([
             (
                 "GRID",
@@ -516,28 +481,28 @@ def generer_facture_pdf(
                 colors.grey
             ),
             (
-                "VALIGN",
-                (0, 0),
-                (-1, -1),
-                "TOP"
-            ),
-            (
                 "BACKGROUND",
                 (0, 0),
                 (0, -1),
                 colors.whitesmoke
             ),
             (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
+            ),
+            (
                 "LEFTPADDING",
                 (0, 0),
                 (-1, -1),
-                8
+                7
             ),
             (
                 "RIGHTPADDING",
                 (0, 0),
                 (-1, -1),
-                8
+                7
             ),
             (
                 "TOPPADDING",
@@ -555,24 +520,23 @@ def generer_facture_pdf(
     )
 
     elements.append(
-        table_info
+        table_infos
     )
 
     elements.append(
-        Spacer(1, 20)
+        Spacer(1, 18)
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # TABLE DES SÉANCES
-    # --------------------------------------------------------
+    # ========================================================
 
     donnees_table = [
         [
             "Date",
             "Horaire",
             "Discipline",
-            "Durée",
-            "Montant"
+            "Durée"
         ]
     ]
 
@@ -592,19 +556,17 @@ def generer_facture_pdf(
 
         heures = float(duree) / 60
 
-        montant = heures * tarif
-
-        date_ligne = str(
-            ligne.get("date", "")
-        )
+        date_ligne = pd.to_datetime(
+            ligne.get("date")
+        ).strftime("%d/%m/%Y")
 
         heure_debut = str(
             ligne.get("heure_debut", "")
-        )
+        )[:5]
 
         heure_fin = str(
             ligne.get("heure_fin", "")
-        )
+        )[:5]
 
         discipline = str(
             ligne.get("disciplines", "")
@@ -615,19 +577,17 @@ def generer_facture_pdf(
                 date_ligne,
                 f"{heure_debut} - {heure_fin}",
                 discipline,
-                f"{heures:.2f} h",
-                f"{montant:.2f} €"
+                f"{heures:.2f} h"
             ]
         )
 
     table_seances = Table(
         donnees_table,
         colWidths=[
-            70,
-            100,
-            130,
-            65,
-            75
+            75,
+            115,
+            210,
+            70
         ],
         repeatRows=1
     )
@@ -656,7 +616,7 @@ def generer_facture_pdf(
             (
                 "ALIGN",
                 (3, 1),
-                (-1, -1),
+                (3, -1),
                 "RIGHT"
             ),
             (
@@ -691,16 +651,16 @@ def generer_facture_pdf(
     )
 
     elements.append(
-        Spacer(1, 20)
+        Spacer(1, 18)
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # TOTAL
-    # --------------------------------------------------------
+    # ========================================================
 
     total_heures = total_minutes / 60
 
-    total = total_heures * tarif
+    montant = total_heures * tarif
 
     total_table = Table(
         [
@@ -720,7 +680,7 @@ def generer_facture_pdf(
                     normal
                 ),
                 Paragraph(
-                    f"<b>{total:.2f} €</b>",
+                    f"<b>{montant:.2f} €</b>",
                     droite
                 )
             ]
@@ -769,7 +729,110 @@ def generer_facture_pdf(
     )
 
     elements.append(
-        Spacer(1, 30)
+        Spacer(1, 18)
+    )
+
+    # ========================================================
+    # PAIEMENT
+    # ========================================================
+
+    if statut == "Payée":
+
+        date_paiement_pdf = (
+            date_paiement.strftime("%d/%m/%Y")
+            if date_paiement
+            else ""
+        )
+
+        paiement = [
+            [
+                Paragraph(
+                    "<b>Statut</b>",
+                    normal
+                ),
+                Paragraph(
+                    "<b>PAYÉE</b>",
+                    normal
+                )
+            ],
+            [
+                Paragraph(
+                    "<b>Date de paiement</b>",
+                    normal
+                ),
+                Paragraph(
+                    date_paiement_pdf,
+                    normal
+                )
+            ]
+        ]
+
+    else:
+
+        paiement = [
+            [
+                Paragraph(
+                    "<b>Statut</b>",
+                    normal
+                ),
+                Paragraph(
+                    "<b>EN ATTENTE DE PAIEMENT</b>",
+                    normal
+                )
+            ],
+            [
+                Paragraph(
+                    "<b>Date de paiement</b>",
+                    normal
+                ),
+                Paragraph(
+                    "—",
+                    normal
+                )
+            ]
+        ]
+
+    table_paiement = Table(
+        paiement,
+        colWidths=[150, 330]
+    )
+
+    table_paiement.setStyle(
+        TableStyle([
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey
+            ),
+            (
+                "BACKGROUND",
+                (0, 0),
+                (0, -1),
+                colors.whitesmoke
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                7
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                7
+            )
+        ])
+    )
+
+    elements.append(
+        table_paiement
+    )
+
+    elements.append(
+        Spacer(1, 25)
     )
 
     elements.append(
@@ -816,9 +879,7 @@ menu = st.sidebar.radio(
 
 if menu == "📚 Gestion des séances":
 
-    st.header(
-        "📚 Gestion des séances"
-    )
+    st.header("📚 Gestion des séances")
 
     action = st.radio(
         "Action",
@@ -829,30 +890,19 @@ if menu == "📚 Gestion des séances":
         horizontal=True
     )
 
-
     # ========================================================
     # NOUVELLE SÉANCE
     # ========================================================
 
     if action == "➕ Nouvelle séance":
 
-        st.subheader(
-            "➕ Nouvelle séance"
-        )
-
-        # ----------------------------------------------------
-        # ÉLÈVE
-        # ----------------------------------------------------
+        st.subheader("➕ Nouvelle séance")
 
         eleve = st.selectbox(
             "Élève",
             ELEVES,
             key="nouvelle_eleve"
         )
-
-        # ----------------------------------------------------
-        # DATE
-        # ----------------------------------------------------
 
         date_seance = st.date_input(
             "Date *",
@@ -863,10 +913,6 @@ if menu == "📚 Gestion des séances":
         st.caption(
             "* La date est le seul champ obligatoire."
         )
-
-        # ----------------------------------------------------
-        # HEURES
-        # ----------------------------------------------------
 
         heure_debut = st.time_input(
             "Heure de début",
@@ -880,10 +926,6 @@ if menu == "📚 Gestion des séances":
             key="nouvelle_heure_fin"
         )
 
-        # ----------------------------------------------------
-        # MODE
-        # ----------------------------------------------------
-
         mode = st.selectbox(
             "Mode",
             [
@@ -893,20 +935,12 @@ if menu == "📚 Gestion des séances":
             key="nouvelle_mode"
         )
 
-        # ----------------------------------------------------
-        # DISCIPLINE
-        # ----------------------------------------------------
-
         disciplines = st.multiselect(
             "Discipline(s)",
             DISCIPLINES,
             default=["Mathématiques"],
             key="nouvelle_disciplines"
         )
-
-        # ----------------------------------------------------
-        # CONTENU
-        # ----------------------------------------------------
 
         contenu_selection = st.multiselect(
             "Contenu",
@@ -930,10 +964,6 @@ if menu == "📚 Gestion des séances":
 
             contenu += contenu_manuel.strip()
 
-        # ----------------------------------------------------
-        # TRAVAIL
-        # ----------------------------------------------------
-
         travail = st.selectbox(
             "Travail à faire",
             TRAVAUX,
@@ -946,10 +976,6 @@ if menu == "📚 Gestion des séances":
                 "Préciser",
                 key="nouvelle_travail_autre"
             )
-
-        # ----------------------------------------------------
-        # OBSERVATIONS
-        # ----------------------------------------------------
 
         observations = st.multiselect(
             "Observations",
@@ -985,10 +1011,6 @@ if menu == "📚 Gestion des séances":
             type="primary"
         ):
 
-            # ------------------------------------------------
-            # CALCUL DURÉE
-            # ------------------------------------------------
-
             debut = (
                 heure_debut.hour * 60
                 + heure_debut.minute
@@ -1002,12 +1024,7 @@ if menu == "📚 Gestion des séances":
             duree = fin - debut
 
             if duree <= 0:
-
                 duree = None
-
-            # ------------------------------------------------
-            # DONNÉES
-            # ------------------------------------------------
 
             nouvelle_seance = {
 
@@ -1047,10 +1064,6 @@ if menu == "📚 Gestion des séances":
                     observations_finales
             }
 
-            # ------------------------------------------------
-            # ENREGISTREMENT SUPABASE
-            # ------------------------------------------------
-
             try:
 
                 (
@@ -1066,25 +1079,14 @@ if menu == "📚 Gestion des séances":
                     "✅ Séance enregistrée dans Supabase."
                 )
 
-                # --------------------------------------------
-                # GOOGLE DRIVE
-                # --------------------------------------------
-
                 ok, message = (
                     synchroniser_drive()
                 )
 
                 if ok:
-
                     st.success(message)
-
                 else:
-
                     st.warning(message)
-
-                # --------------------------------------------
-                # RÉINITIALISATION
-                # --------------------------------------------
 
                 cles_formulaire = [
                     "nouvelle_eleve",
@@ -1102,7 +1104,6 @@ if menu == "📚 Gestion des séances":
                 ]
 
                 for cle in cles_formulaire:
-
                     st.session_state.pop(
                         cle,
                         None
@@ -1116,13 +1117,11 @@ if menu == "📚 Gestion des séances":
                     "❌ Erreur lors de l'enregistrement."
                 )
 
-                st.code(
-                    str(e)
-                )
+                st.code(str(e))
 
 
     # ========================================================
-    # MODIFICATION D'UNE SÉANCE
+    # MODIFICATION
     # ========================================================
 
     else:
@@ -1210,8 +1209,7 @@ if menu == "📚 Gestion des séances":
                 ],
                 index=(
                     0
-                    if ligne["mode"]
-                    == "Présentiel"
+                    if ligne["mode"] == "Présentiel"
                     else 1
                 )
             )
@@ -1262,7 +1260,6 @@ if menu == "📚 Gestion des séances":
                 duree = fin - debut
 
                 if duree <= 0:
-
                     duree = None
 
                 modifications = {
@@ -1323,11 +1320,8 @@ if menu == "📚 Gestion des séances":
                     )
 
                     if ok:
-
                         st.success(message)
-
                     else:
-
                         st.warning(message)
 
                     st.rerun()
@@ -1338,9 +1332,7 @@ if menu == "📚 Gestion des séances":
                         "❌ Erreur lors de la modification."
                     )
 
-                    st.code(
-                        str(e)
-                    )
+                    st.code(str(e))
 
 
 # ============================================================
@@ -1504,8 +1496,47 @@ elif menu == "🧾 Facturation":
 
         eleve = st.selectbox(
             "Élève",
-            ELEVES
+            ELEVES,
+            key="facture_eleve"
         )
+
+        # ----------------------------------------------------
+        # PÉRIODE
+        # ----------------------------------------------------
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            mois = st.selectbox(
+                "Mois",
+                list(range(1, 13)),
+                index=date.today().month - 1,
+                format_func=lambda x: [
+                    "Janvier",
+                    "Février",
+                    "Mars",
+                    "Avril",
+                    "Mai",
+                    "Juin",
+                    "Juillet",
+                    "Août",
+                    "Septembre",
+                    "Octobre",
+                    "Novembre",
+                    "Décembre"
+                ][x - 1]
+            )
+
+        with col2:
+
+            annee = st.number_input(
+                "Année",
+                min_value=2024,
+                max_value=2100,
+                value=date.today().year,
+                step=1
+            )
 
         # ----------------------------------------------------
         # TARIF
@@ -1519,17 +1550,104 @@ elif menu == "🧾 Facturation":
         )
 
         # ----------------------------------------------------
-        # FILTRE ÉLÈVE
+        # STATUT
+        # ----------------------------------------------------
+
+        statut = st.selectbox(
+            "Statut du paiement",
+            [
+                "En attente de paiement",
+                "Payée"
+            ]
+        )
+
+        date_paiement = None
+
+        if statut == "Payée":
+
+            date_paiement = st.date_input(
+                "Date de paiement",
+                value=date.today()
+            )
+
+        # ----------------------------------------------------
+        # PÉRIODE
+        # ----------------------------------------------------
+
+        date_debut = date(
+            int(annee),
+            int(mois),
+            1
+        )
+
+        if mois == 12:
+
+            date_fin = date(
+                int(annee) + 1,
+                1,
+                1
+            )
+
+        else:
+
+            date_fin = date(
+                int(annee),
+                int(mois) + 1,
+                1
+            )
+
+        date_fin_inclusive = (
+            date_fin - pd.Timedelta(days=1)
+        )
+
+        # ----------------------------------------------------
+        # FILTRAGE
         # ----------------------------------------------------
 
         df_eleve = df[
             df["eleve"] == eleve
         ].copy()
 
+        df_eleve["date_temp"] = pd.to_datetime(
+            df_eleve["date"],
+            errors="coerce"
+        ).dt.date
+
+        df_eleve = df_eleve[
+            (
+                df_eleve["date_temp"]
+                >= date_debut
+            )
+            &
+            (
+                df_eleve["date_temp"]
+                <= date_fin_inclusive
+            )
+        ].copy()
+
+        # ----------------------------------------------------
+        # PÉRIODE AFFICHÉE
+        # ----------------------------------------------------
+
+        periode = (
+            f"{date_debut.strftime('%d/%m/%Y')} "
+            f"– "
+            f"{date_fin_inclusive.strftime('%d/%m/%Y')}"
+        )
+
+        st.info(
+            f"📅 Période facturée : {periode}"
+        )
+
+        # ----------------------------------------------------
+        # AUCUNE SÉANCE
+        # ----------------------------------------------------
+
         if df_eleve.empty:
 
-            st.info(
-                "Aucune séance pour cet élève."
+            st.warning(
+                "Aucune séance pour cet élève "
+                "durant cette période."
             )
 
         else:
@@ -1556,7 +1674,7 @@ elif menu == "🧾 Facturation":
             )
 
             # ------------------------------------------------
-            # AFFICHAGE
+            # INDICATEURS
             # ------------------------------------------------
 
             col1, col2, col3 = st.columns(3)
@@ -1578,16 +1696,36 @@ elif menu == "🧾 Facturation":
             with col3:
 
                 st.metric(
-                    "Montant",
+                    "Total",
                     f"{montant:.2f} €"
                 )
 
+            # ------------------------------------------------
+            # TABLEAU
+            # ------------------------------------------------
+
             st.subheader(
-                "📋 Séances facturées"
+                "📋 Séances de la période"
             )
 
+            colonnes = [
+                "date",
+                "heure_debut",
+                "heure_fin",
+                "disciplines",
+                "duree_minutes"
+            ]
+
+            colonnes_existantes = [
+                c
+                for c in colonnes
+                if c in df_eleve.columns
+            ]
+
             st.dataframe(
-                df_eleve,
+                df_eleve[
+                    colonnes_existantes
+                ],
                 use_container_width=True
             )
 
@@ -1599,13 +1737,14 @@ elif menu == "🧾 Facturation":
                 "Numéro de facture",
                 value=(
                     f"CH-"
-                    f"{date.today().strftime('%Y%m%d')}-"
+                    f"{int(annee)}"
+                    f"{int(mois):02d}-"
                     f"{eleve.upper()}"
                 )
             )
 
             # ------------------------------------------------
-            # GÉNÉRER PDF
+            # GÉNÉRATION PDF
             # ------------------------------------------------
 
             if st.button(
@@ -1619,12 +1758,24 @@ elif menu == "🧾 Facturation":
                         df_eleve,
                         eleve,
                         tarif,
-                        numero_facture
+                        numero_facture,
+                        periode,
+                        statut,
+                        date_paiement
                     )
 
                     st.session_state[
                         "facture_pdf"
                     ] = pdf
+
+                    st.session_state[
+                        "facture_nom"
+                    ] = (
+                        f"Facture_"
+                        f"{eleve}_"
+                        f"{int(annee)}_"
+                        f"{int(mois):02d}.pdf"
+                    )
 
                     st.success(
                         "✅ Facture PDF générée."
@@ -1652,11 +1803,8 @@ elif menu == "🧾 Facturation":
                     data=st.session_state[
                         "facture_pdf"
                     ],
-                    file_name=(
-                        f"Facture_"
-                        f"{eleve}_"
-                        f"{date.today().strftime('%Y%m%d')}"
-                        f".pdf"
-                    ),
+                    file_name=st.session_state[
+                        "facture_nom"
+                    ],
                     mime="application/pdf"
                 )
