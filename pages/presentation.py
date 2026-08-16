@@ -27,7 +27,6 @@ st.write(
 
 st.divider()
 
-
 # =========================
 # MATIÈRES
 # =========================
@@ -71,7 +70,6 @@ with col3:
 
 st.divider()
 
-
 # =========================
 # MODALITÉS
 # =========================
@@ -100,7 +98,6 @@ with col2:
 
 st.divider()
 
-
 # =========================
 # POUR QUI ?
 # =========================
@@ -122,30 +119,28 @@ st.write(
 
 st.divider()
 
-
 # =========================
 # CONTACT
 # =========================
 
-st.header("📞 Prise de contact")
+st.header("📞 Contact")
 
 st.write(
     """
-    Vous souhaitez obtenir des informations sur les cours,
-    les tarifs ou les disponibilités ?
+    Vous souhaitez obtenir des informations ou organiser
+    un premier échange ?
     """
 )
 
-
 # =========================
-# APPEL DIRECT
+# CONTACT TELEPHONIQUE
 # =========================
 
 st.subheader("📞 Appelez-nous directement")
 
 st.markdown(
     """
-    ## **06 XX XX XX XX**
+    ### **06 XX XX XX XX**
     """
 )
 
@@ -153,173 +148,21 @@ st.write(
     "N'hésitez pas à appeler pour obtenir un premier renseignement."
 )
 
-st.divider()
-
-
 # =========================
-# ÊTRE RECONTACTÉ
-# =========================
-
-st.subheader("📩 Vous préférez être recontacté(e) ?")
-
-st.write(
-    """
-    Laissez simplement votre prénom et votre numéro
-    de téléphone.
-    """
-)
-
-if "contact_envoye" not in st.session_state:
-    st.session_state.contact_envoye = False
-
-
-if st.session_state.contact_envoye:
-
-    st.success(
-        "✅ Votre demande a bien été envoyée. "
-        "Merci ! Nous vous recontacterons prochainement."
-    )
-
-    if st.button("Nouvelle demande"):
-        st.session_state.contact_envoye = False
-        st.rerun()
-
-else:
-
-    with st.form("formulaire_contact_telephone"):
-
-        prenom_parent = st.text_input(
-            "Votre prénom *",
-            placeholder="Ex. Sophie"
-        )
-
-        telephone = st.text_input(
-            "Votre numéro de téléphone *",
-            placeholder="Ex. 06 12 34 56 78"
-        )
-
-        message_telephone = st.text_area(
-            "Votre message",
-            placeholder="Quelques mots sur votre demande..."
-        )
-
-        envoyer_telephone = st.form_submit_button(
-            "📨 Être recontacté(e)"
-        )
-
-        if envoyer_telephone:
-
-            if not prenom_parent.strip():
-
-                st.error(
-                    "Merci d'indiquer votre prénom."
-                )
-
-            elif not telephone.strip():
-
-                st.error(
-                    "Merci d'indiquer votre numéro de téléphone."
-                )
-
-            else:
-
-                st.session_state.contact_envoye = True
-                st.rerun()
-
-
-st.divider()
-
-
-# =========================
-# ÉCRIVEZ-NOUS
+# CONTACT PAR EMAIL
 # =========================
 
 st.subheader("✉️ Écrivez-nous")
 
 st.write(
-    """
-    Vous préférez nous contacter par e-mail ?
-    Laissez-nous votre message.
-    """
+    "Vous pouvez également nous contacter par e-mail :"
 )
 
-if "email_envoye" not in st.session_state:
-    st.session_state.email_envoye = False
-
-
-if st.session_state.email_envoye:
-
-    st.success(
-        "✅ Votre message a bien été envoyé. Merci !"
-    )
-
-    if st.button("Nouveau message"):
-
-        st.session_state.email_envoye = False
-        st.rerun()
-
-else:
-
-    with st.form("formulaire_email"):
-
-        prenom_email = st.text_input(
-            "Votre prénom *",
-            placeholder="Ex. Sophie"
-        )
-
-        email = st.text_input(
-            "Votre adresse e-mail *",
-            placeholder="Ex. sophie@email.com"
-        )
-
-        message_email = st.text_area(
-            "Votre message *",
-            placeholder=(
-                "Écrivez votre demande ici..."
-            )
-        )
-
-        envoyer_email = st.form_submit_button(
-            "✉️ Envoyer"
-        )
-
-        if envoyer_email:
-
-            if not prenom_email.strip():
-
-                st.error(
-                    "Merci d'indiquer votre prénom."
-                )
-
-            elif not email.strip():
-
-                st.error(
-                    "Merci d'indiquer votre adresse e-mail."
-                )
-
-            elif not message_email.strip():
-
-                st.error(
-                    "Merci d'écrire votre message."
-                )
-
-            else:
-
-                st.session_state.email_envoye = True
-                st.rerun()
-
-
-# =========================
-# CONFIDENTIALITÉ
-# =========================
-
-st.caption(
-    "🔒 Vos coordonnées sont utilisées uniquement "
-    "pour répondre à votre demande."
+st.markdown(
+    "[📧 TON_EMAIL@gmail.com](mailto:TON_EMAIL@gmail.com)"
 )
 
 st.divider()
-
 
 # =========================
 # PIED DE PAGE
