@@ -135,7 +135,7 @@ st.subheader(
 
 st.write(
     """
-    Titulaire d'un **Master MEEF**, enseignant expérimenté
+    Ayant suivi la formation  **Master MEEF**, et enseignant expérimenté
     en mathématiques, j'accompagne les élèves du
     **collège au lycée**, ainsi que les étudiants en **BTS**.
 
@@ -152,7 +152,8 @@ with col1:
     st.markdown("### 🎓 Formation")
     st.write(
         """
-        • Master MEEF
+        • Master MEEF (Métiers de l'Enseignement,
+  de l'Éducation et de la Formation)
         • CAPES de mathématiques
         """
     )
