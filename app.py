@@ -44,7 +44,7 @@ TARIF_HORAIRE = float(
 
 
 # ============================================================
-# CONNEXION
+# CONNEXION PROFESSEUR
 # ============================================================
 
 if "connecte" not in st.session_state:
@@ -77,7 +77,7 @@ if not st.session_state.connecte:
 
 
 # ============================================================
-# FONCTIONS ELEVES
+# ELEVES
 # ============================================================
 
 def recuperer_eleves():
@@ -86,52 +86,29 @@ def recuperer_eleves():
         supabase
         .table("eleves")
         .select("*")
-        .order("nom")
+        .order("prenom")
         .execute()
     )
 
     return resultat.data or []
 
 
-def ajouter_eleve(
-    nom,
-    prenom,
-    telephone,
-    email,
-    responsable,
-    notes
-):
+def ajouter_eleve(prenom, nom):
 
     supabase.table("eleves").insert({
 
-        "nom": nom,
         "prenom": prenom,
-        "telephone": telephone,
-        "email": email,
-        "responsable": responsable,
-        "notes": notes
+        "nom": nom
 
     }).execute()
 
 
-def modifier_eleve(
-    id_eleve,
-    nom,
-    prenom,
-    telephone,
-    email,
-    responsable,
-    notes
-):
+def modifier_eleve(id_eleve, prenom, nom):
 
     supabase.table("eleves").update({
 
-        "nom": nom,
         "prenom": prenom,
-        "telephone": telephone,
-        "email": email,
-        "responsable": responsable,
-        "notes": notes
+        "nom": nom
 
     }).eq(
         "id",
@@ -140,7 +117,7 @@ def modifier_eleve(
 
 
 # ============================================================
-# FONCTIONS SEANCES
+# SEANCES
 # ============================================================
 
 def recuperer_seances():
@@ -383,7 +360,12 @@ def generer_observation(seances):
         )
 
 
-    # Observation générale
+    if not phrases:
+
+        phrases.append(
+            "Le travail se poursuit régulièrement."
+        )
+
 
     debut = (
         f"{nombre} séance(s) ont été réalisées, "
@@ -391,14 +373,9 @@ def generer_observation(seances):
         f"{duree_totale} minutes."
     )
 
-    if not phrases:
-
-        phrases.append(
-            "Le travail se poursuit régulièrement."
-        )
-
     return (
-        debut + " "
+        debut
+        + " "
         + " ".join(phrases)
     )
 
@@ -441,7 +418,7 @@ def filtrer_seances(
 
 
 # ============================================================
-# CREATION FACTURE PDF
+# FACTURE PDF
 # ============================================================
 
 def creer_facture_pdf(
@@ -463,8 +440,6 @@ def creer_facture_pdf(
 
     y = hauteur - 60
 
-
-    # Titre
 
     pdf.setFont(
         "Helvetica-Bold",
@@ -512,14 +487,12 @@ def creer_facture_pdf(
         y,
         "Période : "
         f"{date_debut.strftime('%d/%m/%Y')} "
-        f"au "
+        "au "
         f"{date_fin.strftime('%d/%m/%Y')}"
     )
 
     y -= 35
 
-
-    # Entêtes
 
     pdf.setFont(
         "Helvetica-Bold",
@@ -560,8 +533,6 @@ def creer_facture_pdf(
 
     total_minutes = 0
 
-
-    # Séances
 
     for s in seances:
 
@@ -623,11 +594,10 @@ def creer_facture_pdf(
             y = hauteur - 60
 
 
-    # Total
-
     total = (
         total_minutes / 60
     ) * tarif
+
 
     y -= 20
 
@@ -651,6 +621,7 @@ def creer_facture_pdf(
         f"Durée totale : {total_minutes} minutes"
     )
 
+
     pdf.save()
 
     buffer.seek(0)
@@ -666,6 +637,7 @@ st.sidebar.title(
     "📚 Cours Hercule"
 )
 
+
 menu = st.sidebar.radio(
 
     "Menu",
@@ -679,23 +651,29 @@ menu = st.sidebar.radio(
         "📊 Bilan",
         "🧾 Facturation"
     ]
+
 )
 
 
 # ============================================================
-# RECUPERATION DES DONNEES
+# RECUPERATION DONNEES
 # ============================================================
 
 eleves = recuperer_eleves()
 
 seances = recuperer_seances()
 
+
 noms_eleves = [
 
     (
-        e.get("prenom", "")
-        + " "
-        + e.get("nom", "")
+        str(e.get("prenom", ""))
+        + (
+            " "
+            + str(e.get("nom", ""))
+            if e.get("nom")
+            else ""
+        )
     ).strip()
 
     for e in eleves
@@ -704,7 +682,7 @@ noms_eleves = [
 
 
 # ============================================================
-# AJOUTER ELEVE
+# AJOUTER UN ELEVE
 # ============================================================
 
 if menu == "👨‍🎓 Ajouter un élève":
@@ -712,6 +690,7 @@ if menu == "👨‍🎓 Ajouter un élève":
     st.title(
         "👨‍🎓 Ajouter un élève"
     )
+
 
     with st.form(
         "ajouter_eleve"
@@ -722,35 +701,21 @@ if menu == "👨‍🎓 Ajouter un élève":
         )
 
         nom = st.text_input(
-            "Nom *"
+            "Nom"
         )
 
-        telephone = st.text_input(
-            "Téléphone"
-        )
-
-        email = st.text_input(
-            "E-mail"
-        )
-
-        responsable = st.text_input(
-            "Responsable légal"
-        )
-
-        notes = st.text_area(
-            "Notes"
-        )
 
         envoyer = st.form_submit_button(
             "➕ Ajouter l'élève"
         )
 
+
         if envoyer:
 
-            if not prenom or not nom:
+            if not prenom.strip():
 
                 st.error(
-                    "Le prénom et le nom sont obligatoires."
+                    "Le prénom est obligatoire."
                 )
 
             else:
@@ -758,12 +723,8 @@ if menu == "👨‍🎓 Ajouter un élève":
                 try:
 
                     ajouter_eleve(
-                        nom,
-                        prenom,
-                        telephone,
-                        email,
-                        responsable,
-                        notes
+                        prenom.strip(),
+                        nom.strip()
                     )
 
                     st.success(
@@ -780,7 +741,7 @@ if menu == "👨‍🎓 Ajouter un élève":
 
 
 # ============================================================
-# MODIFIER ELEVE
+# MODIFIER UN ELEVE
 # ============================================================
 
 elif menu == "✏️ Modifier un élève":
@@ -788,6 +749,7 @@ elif menu == "✏️ Modifier un élève":
     st.title(
         "✏️ Modifier un élève"
     )
+
 
     if not eleves:
 
@@ -807,9 +769,28 @@ elif menu == "✏️ Modifier un élève":
 
             format_func=lambda i:
 
-                f"{eleves[i].get('prenom','')} "
-                f"{eleves[i].get('nom','')}"
+                (
+                    str(
+                        eleves[i].get(
+                            "prenom",
+                            ""
+                        )
+                    )
+                    + (
+                        " "
+                        + str(
+                            eleves[i].get(
+                                "nom",
+                                ""
+                            )
+                        )
+                        if eleves[i].get("nom")
+                        else ""
+                    )
+                ).strip()
+
         )
+
 
         eleve = eleves[choix]
 
@@ -819,52 +800,32 @@ elif menu == "✏️ Modifier un élève":
         ):
 
             prenom = st.text_input(
-                "Prénom",
-                value=eleve.get(
-                    "prenom",
-                    ""
+
+                "Prénom *",
+
+                value=str(
+                    eleve.get(
+                        "prenom",
+                        ""
+                    )
                 )
+
             )
+
 
             nom = st.text_input(
+
                 "Nom",
-                value=eleve.get(
-                    "nom",
-                    ""
+
+                value=str(
+                    eleve.get(
+                        "nom",
+                        ""
+                    )
                 )
+
             )
 
-            telephone = st.text_input(
-                "Téléphone",
-                value=eleve.get(
-                    "telephone",
-                    ""
-                )
-            )
-
-            email = st.text_input(
-                "E-mail",
-                value=eleve.get(
-                    "email",
-                    ""
-                )
-            )
-
-            responsable = st.text_input(
-                "Responsable légal",
-                value=eleve.get(
-                    "responsable",
-                    ""
-                )
-            )
-
-            notes = st.text_area(
-                "Notes",
-                value=eleve.get(
-                    "notes",
-                    ""
-                )
-            )
 
             modifier = st.form_submit_button(
                 "💾 Enregistrer les modifications"
@@ -873,29 +834,37 @@ elif menu == "✏️ Modifier un élève":
 
             if modifier:
 
-                try:
-
-                    modifier_eleve(
-                        eleve["id"],
-                        nom,
-                        prenom,
-                        telephone,
-                        email,
-                        responsable,
-                        notes
-                    )
-
-                    st.success(
-                        "Élève modifié."
-                    )
-
-                    st.rerun()
-
-                except Exception as e:
+                if not prenom.strip():
 
                     st.error(
-                        f"Erreur : {e}"
+                        "Le prénom est obligatoire."
                     )
+
+                else:
+
+                    try:
+
+                        modifier_eleve(
+
+                            eleve["id"],
+
+                            prenom.strip(),
+
+                            nom.strip()
+
+                        )
+
+                        st.success(
+                            "Élève modifié."
+                        )
+
+                        st.rerun()
+
+                    except Exception as e:
+
+                        st.error(
+                            f"Erreur : {e}"
+                        )
 
 
 # ============================================================
@@ -907,6 +876,7 @@ elif menu == "📚 Gestion des séances":
     st.title(
         "📚 Gestion des séances"
     )
+
 
     if not noms_eleves:
 
@@ -938,6 +908,7 @@ elif menu == "📚 Gestion des séances":
                 noms_eleves
             )
 
+
             date_seance = st.date_input(
                 "Date",
                 value=date.today()
@@ -962,28 +933,37 @@ elif menu == "📚 Gestion des séances":
 
 
             disciplines = st.multiselect(
+
                 "Discipline(s)",
+
                 disciplines_disponibles
+
             )
 
 
             contenu = st.text_area(
+
                 "Contenu de la séance",
+
                 placeholder=(
                     "Exemple : "
                     "Théorème de Pythagore, "
                     "exercices d'application..."
                 )
+
             )
 
 
             observations = st.text_area(
+
                 "Observations",
+
                 placeholder=(
                     "Exemple : "
                     "Bonne participation + "
                     "difficulté de compréhension"
                 )
+
             )
 
 
@@ -1011,17 +991,25 @@ elif menu == "📚 Gestion des séances":
                     try:
 
                         ajouter_seance(
+
                             date_seance,
+
                             heure_debut.strftime(
                                 "%H:%M"
                             ),
+
                             heure_fin.strftime(
                                 "%H:%M"
                             ),
+
                             eleve,
+
                             disciplines,
+
                             contenu,
+
                             observations
+
                         )
 
                         st.success(
@@ -1047,6 +1035,7 @@ elif menu == "📖 Cahier de texte":
         "📖 Cahier de texte"
     )
 
+
     if noms_eleves:
 
         eleve = st.selectbox(
@@ -1057,11 +1046,11 @@ elif menu == "📖 Cahier de texte":
 
         seances_eleve = [
 
-            s for s in seances
+            s
 
-            if s.get(
-                "eleve"
-            ) == eleve
+            for s in seances
+
+            if s.get("eleve") == eleve
 
         ]
 
@@ -1077,27 +1066,38 @@ elif menu == "📖 Cahier de texte":
             ):
 
                 st.write(
+
                     "**Discipline :**",
+
                     s.get(
                         "disciplines",
                         ""
                     )
+
                 )
 
+
                 st.write(
+
                     "**Contenu :**",
+
                     s.get(
                         "contenu",
                         ""
                     )
+
                 )
 
+
                 st.write(
+
                     "**Observations :**",
+
                     s.get(
                         "observations",
                         ""
                     )
+
                 )
 
     else:
@@ -1108,7 +1108,7 @@ elif menu == "📖 Cahier de texte":
 
 
 # ============================================================
-# MODIFIER SEANCE
+# MODIFIER UNE SEANCE
 # ============================================================
 
 elif menu == "✏️ Modifier une séance":
@@ -1116,6 +1116,7 @@ elif menu == "✏️ Modifier une séance":
     st.title(
         "✏️ Modifier une séance"
     )
+
 
     if not seances:
 
@@ -1137,6 +1138,7 @@ elif menu == "✏️ Modifier une séance":
 
                 f"{seances[i].get('date')} - "
                 f"{seances[i].get('eleve')}"
+
         )
 
 
@@ -1180,23 +1182,33 @@ elif menu == "✏️ Modifier une séance":
         ):
 
             eleve = st.selectbox(
+
                 "Élève",
+
                 noms_eleves,
+
                 index=(
+
                     noms_eleves.index(
                         s.get("eleve")
                     )
-                    if
-                    s.get("eleve")
+
+                    if s.get("eleve")
                     in noms_eleves
+
                     else 0
+
                 )
+
             )
 
 
             date_seance = st.date_input(
+
                 "Date",
+
                 value=date_initiale
+
             )
 
 
@@ -1214,6 +1226,7 @@ elif menu == "✏️ Modifier une séance":
                     "%H:%M"
 
                 ).time()
+
             )
 
 
@@ -1231,6 +1244,7 @@ elif menu == "✏️ Modifier une séance":
                     "%H:%M"
 
                 ).time()
+
             )
 
 
@@ -1283,13 +1297,21 @@ elif menu == "✏️ Modifier une séance":
             )
 
 
-            modifier = st.form_submit_button(
-                "💾 Modifier"
-            )
+            col1, col2 = st.columns(2)
 
-            supprimer = st.form_submit_button(
-                "🗑️ Supprimer"
-            )
+
+            with col1:
+
+                modifier = st.form_submit_button(
+                    "💾 Modifier"
+                )
+
+
+            with col2:
+
+                supprimer = st.form_submit_button(
+                    "🗑️ Supprimer"
+                )
 
 
             if modifier:
@@ -1356,6 +1378,7 @@ elif menu == "📊 Bilan":
         "📊 Bilan de l'élève"
     )
 
+
     if noms_eleves:
 
         eleve = st.selectbox(
@@ -1370,18 +1393,24 @@ elif menu == "📊 Bilan":
         with col1:
 
             date_debut = st.date_input(
+
                 "Du",
+
                 value=date.today().replace(
                     day=1
                 )
+
             )
 
 
         with col2:
 
             date_fin = st.date_input(
+
                 "Au",
+
                 value=date.today()
+
             )
 
 
@@ -1399,18 +1428,23 @@ elif menu == "📊 Bilan":
 
 
         st.metric(
+
             "Nombre de séances",
+
             len(donnees)
+
         )
 
 
         duree = sum(
 
             int(
+
                 s.get(
                     "duree",
                     0
                 ) or 0
+
             )
 
             for s in donnees
@@ -1419,8 +1453,11 @@ elif menu == "📊 Bilan":
 
 
         st.metric(
+
             "Durée totale",
+
             f"{duree} min"
+
         )
 
 
@@ -1452,8 +1489,10 @@ elif menu == "📊 Bilan":
             observation_modifiable,
 
             file_name=(
+
                 f"bilan_"
                 f"{eleve.replace(' ', '_')}.txt"
+
             )
 
         )
@@ -1480,9 +1519,11 @@ elif menu == "📊 Bilan":
             ):
 
                 st.caption(
+
                     s.get(
                         "observations"
                     )
+
                 )
 
 
@@ -1512,19 +1553,17 @@ elif menu == "🧾 Facturation":
 
     else:
 
-        # ====================================================
-        # ELEVE
-        # ====================================================
-
         eleve = st.selectbox(
+
             "👨‍🎓 Élève",
+
             noms_eleves
+
         )
 
 
         # ====================================================
-        # PERIODE
-        # Mensuelle = choix par défaut
+        # PERIODE MENSUELLE PAR DEFAUT
         # ====================================================
 
         periode = st.selectbox(
@@ -1788,21 +1827,15 @@ elif menu == "🧾 Facturation":
                 date_fin = aujourd_hui
 
 
-        # ====================================================
-        # AFFICHAGE PERIODE
-        # ====================================================
-
         st.write(
+
             f"**Période sélectionnée :** "
             f"{date_debut.strftime('%d/%m/%Y')} "
             f"→ "
             f"{date_fin.strftime('%d/%m/%Y')}"
+
         )
 
-
-        # ====================================================
-        # RECUPERATION SEANCES
-        # ====================================================
 
         donnees = filtrer_seances(
 
@@ -1848,20 +1881,13 @@ elif menu == "🧾 Facturation":
 
 
             total_heures = (
-
-                total_minutes
-
-                / 60
-
+                total_minutes / 60
             )
 
 
             montant = (
-
                 total_heures
-
                 * TARIF_HORAIRE
-
             )
 
 
@@ -1904,10 +1930,6 @@ elif menu == "🧾 Facturation":
             st.divider()
 
 
-            # =================================================
-            # DETAIL
-            # =================================================
-
             st.subheader(
                 "📚 Détail des séances"
             )
@@ -1927,18 +1949,16 @@ elif menu == "🧾 Facturation":
 
                 prix = (
 
-                    minutes
-
-                    / 60
+                    minutes / 60
 
                 ) * TARIF_HORAIRE
 
 
                 st.write(
 
-                    f"📅 **{s.get('date')}**  "
-                    f"| {minutes} min  "
-                    f"| {s.get('disciplines')}  "
+                    f"📅 **{s.get('date')}** "
+                    f"| {minutes} min "
+                    f"| {s.get('disciplines')} "
                     f"| **{prix:.2f} €**"
 
                 )
@@ -1976,7 +1996,7 @@ elif menu == "🧾 Facturation":
 
 
             # =================================================
-            # FACTURE
+            # FACTURE PDF
             # =================================================
 
             st.subheader(
