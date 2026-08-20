@@ -85,7 +85,9 @@ mot_de_passe = st.text_input(
 
 if mot_de_passe != st.secrets["mot_de_passe"]:
 
-    st.info("🔒 Espace réservé à l'enseignant.")
+    st.info(
+        "🔒 Espace réservé à l'enseignant."
+    )
 
     st.stop()
 
@@ -97,108 +99,132 @@ if mot_de_passe != st.secrets["mot_de_passe"]:
 DISCIPLINES = [
     "Mathématiques",
     "Physique",
-    "Chimie",
     "Informatique",
     "Français",
     "Anglais",
-    "Histoire",
-    "Géographie",
-    "SVT",
     "Technologie",
     "Culture générale",
     "Méthodologie",
-    "Préparation examen",
+    "Préparation aux examens",
     "Autre"
 ]
 
 
 CONTENUS = [
+    "Équations simples",
+    "Équations",
+    "Inéquations",
     "Nombres relatifs",
-    "Calcul numérique",
     "Fractions",
-    "Puissances",
     "Calcul littéral",
     "Développement",
     "Factorisation",
-    "Équations",
-    "Inéquations",
-    "Proportionnalité",
-    "Pourcentages",
-    "Fonctions",
-    "Repérage",
-    "Statistiques",
-    "Probabilités",
+    "Puissances",
+    "Racines carrées",
     "Pythagore",
     "Thalès",
     "Trigonométrie",
+    "Fonctions",
+    "Proportionnalité",
     "Géométrie",
-    "Volumes et aires",
-    "Conversions",
+    "Statistiques",
+    "Probabilités",
+    "Nombres premiers",
+    "Arithmétique",
     "Algorithmique",
     "Programmation",
+    "SQL",
+    "Python",
+    "Révisions",
     "Préparation contrôle",
     "Préparation examen",
-    "Révisions",
     "Autre"
 ]
 
 
 TRAVAUX = [
-    "Aucun",
     "Exercices du manuel",
     "Exercices supplémentaires",
     "Exercices à terminer",
-    "Corriger les exercices",
     "Revoir le cours",
     "Apprendre le cours",
     "Relire la leçon",
     "Faire une fiche de révision",
-    "Mémoriser les formules",
-    "S'entraîner sur des exercices",
+    "Réviser les notions étudiées",
     "Préparer le prochain cours",
     "Préparer un contrôle",
-    "Préparer un devoir",
-    "Réviser pour un examen",
-    "Travail sur ordinateur",
-    "Travail de recherche",
-    "Lecture",
+    "Préparer un examen",
+    "Travail personnel recommandé",
+    "Aucun",
     "Autre"
 ]
 
 
 OBSERVATIONS = [
     "Élève attentif",
-    "Très bonne attention",
-    "Élève sérieux",
+    "Élève très attentif",
+    "Élève concentré",
     "Élève motivé",
-    "Élève volontaire",
+    "Élève sérieux",
+    "Élève fatigué",
+    "Élève distrait",
+    "Manque de concentration",
+    "Participation satisfaisante",
     "Bonne participation",
-    "Très bonne séance",
+    "Très bonne participation",
+    "Élève actif",
+    "Élève volontaire",
+    "Bonne autonomie",
+    "Autonomie à renforcer",
+    "Travail sérieux",
+    "Travail régulier",
+    "Travail irrégulier",
+    "Difficultés importantes",
+    "Difficultés de compréhension",
+    "Difficultés de méthode",
+    "Difficultés de calcul",
+    "Difficultés de rédaction",
+    "Notions à consolider",
+    "Notions à revoir",
     "Bonne compréhension",
-    "Bonne maîtrise des notions",
+    "Très bonne compréhension",
     "Progrès constatés",
     "Progrès importants",
-    "Travail régulier",
-    "Travail satisfaisant",
-    "Élève autonome",
-    "Autonomie à développer",
-    "Difficultés de compréhension",
-    "Difficultés importantes",
-    "Notions à consolider",
-    "Manque de méthode",
-    "Manque de confiance",
-    "Élève distrait",
-    "Difficultés de concentration",
-    "Élève fatigué",
-    "Travail insuffisant",
-    "Participation à renforcer",
+    "Très bonne séance",
+    "Séance satisfaisante",
+    "Travail à poursuivre",
     "Travail régulier recommandé",
     "Autre"
 ]
 
 
 # ============================================================
-# RÉCUPÉRER LES ÉLÈVES
+# PROPOSITIONS DE CONTRAT
+# ============================================================
+
+CONTRATS = [
+    "Cours hebdomadaire – 1 séance par semaine",
+    "Cours hebdomadaire – 2 séances par semaine",
+    "Cours hebdomadaire – 3 séances par semaine",
+    "Cours ponctuel selon les besoins",
+    "Forfait mensuel",
+    "Forfait mensuel avec nombre de séances défini",
+    "Accompagnement scolaire régulier",
+    "Préparation aux examens",
+    "Préparation au brevet",
+    "Préparation au baccalauréat",
+    "Préparation à un concours",
+    "Stage intensif pendant les vacances",
+    "Cours à distance",
+    "Cours en présentiel",
+    "Cours mixte présentiel / distanciel",
+    "Aucune modalité particulière",
+    "Autre"
+]
+
+
+# ============================================================
+# FONCTIONS ÉLÈVES
 # ============================================================
 
 def recuperer_eleves():
@@ -223,10 +249,11 @@ def recuperer_eleves():
                     "prenom",
                     "nom",
                     "classe_actuelle",
+                    "created_at",
                     "type_tarification",
                     "tarif_horaire",
                     "forfait_mensuel",
-                    "created_at"
+                    "contrat"
                 ]
             )
 
@@ -240,10 +267,6 @@ def recuperer_eleves():
 
         return pd.DataFrame()
 
-
-# ============================================================
-# LISTE DES ÉLÈVES
-# ============================================================
 
 def liste_eleves():
 
@@ -276,8 +299,24 @@ def liste_eleves():
     return sorted(noms)
 
 
+def nom_complet_eleve(ligne):
+
+    prenom = str(
+        ligne.get("prenom", "")
+    ).strip()
+
+    nom = str(
+        ligne.get("nom", "")
+    ).strip()
+
+    if nom:
+        return f"{prenom} {nom}"
+
+    return prenom
+
+
 # ============================================================
-# RÉCUPÉRER LES SÉANCES
+# SÉANCES
 # ============================================================
 
 def recuperer_seances():
@@ -329,12 +368,14 @@ def obtenir_service_drive():
         token=access_token
     )
 
-    return build(
+    service = build(
         "drive",
         "v3",
         credentials=credentials,
         cache_discovery=False
     )
+
+    return service
 
 
 def dataframe_csv_bytes(df):
@@ -347,7 +388,9 @@ def dataframe_csv_bytes(df):
         encoding="utf-8-sig"
     )
 
-    return buffer.getvalue().encode("utf-8-sig")
+    return buffer.getvalue().encode(
+        "utf-8-sig"
+    )
 
 
 def sauvegarder_dans_drive(df):
@@ -372,7 +415,10 @@ def sauvegarder_dans_drive(df):
         .execute()
     )
 
-    dossiers = resultat.get("files", [])
+    dossiers = resultat.get(
+        "files",
+        []
+    )
 
     if dossiers:
 
@@ -418,14 +464,19 @@ def sauvegarder_dans_drive(df):
         .execute()
     )
 
-    fichiers = resultat.get("files", [])
+    fichiers = resultat.get(
+        "files",
+        []
+    )
 
     if fichiers:
+
+        fichier_id = fichiers[0]["id"]
 
         (
             service.files()
             .update(
-                fileId=fichiers[0]["id"],
+                fileId=fichier_id,
                 media_body=media
             )
             .execute()
@@ -507,7 +558,8 @@ def analyser_observations(df_eleve):
 
         nombre = texte_observations.apply(
             lambda texte:
-                observation.lower() in texte.lower()
+                observation.lower()
+                in texte.lower()
         ).sum()
 
         if nombre > 0:
@@ -528,15 +580,24 @@ def generer_observation_automatique(df_eleve):
             "pour cette période."
         )
 
-    bilan = analyser_observations(df_eleve)
+    bilan = analyser_observations(
+        df_eleve
+    )
 
     phrases = []
 
-    attentif = bilan.get("Élève attentif", 0)
-    tres_attention = bilan.get("Très bonne attention", 0)
+    attentif = bilan.get(
+        "Élève attentif",
+        0
+    )
+
+    tres_attentif = bilan.get(
+        "Élève très attentif",
+        0
+    )
 
     if (
-        attentif + tres_attention
+        attentif + tres_attentif
         >= nombre_seances * 0.75
     ):
 
@@ -546,7 +607,7 @@ def generer_observation_automatique(df_eleve):
         )
 
     elif (
-        attentif + tres_attention
+        attentif + tres_attentif
         >= nombre_seances * 0.5
     ):
 
@@ -555,13 +616,16 @@ def generer_observation_automatique(df_eleve):
             "globalement satisfaisante."
         )
 
-    fatigue = bilan.get("Élève fatigué", 0)
+    fatigue = bilan.get(
+        "Élève fatigué",
+        0
+    )
 
     if fatigue >= nombre_seances * 0.75:
 
         phrases.append(
-            "Une fatigue importante a été observée "
-            "sur la majorité des séances."
+            "Une fatigue importante a été "
+            "observée sur la majorité des séances."
         )
 
     elif fatigue >= nombre_seances * 0.5:
@@ -584,7 +648,7 @@ def generer_observation_automatique(df_eleve):
     )
 
     concentration = bilan.get(
-        "Difficultés de concentration",
+        "Manque de concentration",
         0
     )
 
@@ -595,9 +659,10 @@ def generer_observation_automatique(df_eleve):
             "ont été observées régulièrement."
         )
 
-    participation = bilan.get(
-        "Bonne participation",
-        0
+    participation = (
+        bilan.get("Bonne participation", 0)
+        + bilan.get("Très bonne participation", 0)
+        + bilan.get("Participation satisfaisante", 0)
     )
 
     if participation >= nombre_seances * 0.5:
@@ -607,51 +672,31 @@ def generer_observation_automatique(df_eleve):
             "satisfaisante."
         )
 
-    difficultes = bilan.get(
-        "Difficultés importantes",
-        0
-    )
-
-    comprehension = bilan.get(
-        "Difficultés de compréhension",
-        0
+    difficultes = (
+        bilan.get("Difficultés importantes", 0)
+        + bilan.get("Difficultés de compréhension", 0)
     )
 
     if difficultes > 0:
 
         phrases.append(
-            "Certaines difficultés importantes "
-            "nécessitent encore un accompagnement."
-        )
-
-    elif comprehension > 0:
-
-        phrases.append(
             "Certaines notions nécessitent encore "
-            "des explications et des consolidations."
+            "un accompagnement et des consolidations."
         )
 
-    progres = bilan.get(
-        "Progrès constatés",
-        0
+    progres = (
+        bilan.get("Progrès constatés", 0)
+        + bilan.get("Progrès importants", 0)
     )
 
-    progres_importants = bilan.get(
-        "Progrès importants",
-        0
-    )
-
-    if (
-        progres + progres_importants
-        >= nombre_seances * 0.5
-    ):
+    if progres >= nombre_seances * 0.5:
 
         phrases.append(
             "Des progrès sont constatés "
             "au cours de la période."
         )
 
-    elif progres + progres_importants > 0:
+    elif progres > 0:
 
         phrases.append(
             "Des progrès commencent à apparaître."
@@ -696,10 +741,10 @@ def generer_facture_pdf(
     df_eleve,
     eleve,
     niveau,
-    type_tarification,
     tarif,
-    remise_type,
-    remise_valeur,
+    type_tarification,
+    forfait_mensuel,
+    remise,
     numero_facture,
     periode,
     statut,
@@ -757,10 +802,6 @@ def generer_facture_pdf(
 
     elements = []
 
-    # --------------------------------------------------------
-    # TITRE
-    # --------------------------------------------------------
-
     elements.append(
         Paragraph(
             "COURS HERCULE",
@@ -775,11 +816,9 @@ def generer_facture_pdf(
         )
     )
 
-    elements.append(Spacer(1, 7))
-
-    # --------------------------------------------------------
-    # CALCULS
-    # --------------------------------------------------------
+    elements.append(
+        Spacer(1, 7)
+    )
 
     df_eleve = df_eleve.copy()
 
@@ -788,52 +827,57 @@ def generer_facture_pdf(
         errors="coerce"
     ).fillna(0)
 
-    total_minutes = df_eleve[
-        "duree_minutes"
-    ].sum()
+    total_minutes = (
+        df_eleve["duree_minutes"].sum()
+    )
 
     total_heures = total_minutes / 60
-
-    if type_tarification == "Forfait mensuel":
-
-        sous_total = float(tarif)
-
-    else:
-
-        sous_total = (
-            total_heures * float(tarif)
-        )
-
-    montant_remise = 0.0
-
-    if remise_type == "Pourcentage":
-
-        montant_remise = (
-            sous_total
-            * float(remise_valeur)
-            / 100
-        )
-
-    elif remise_type == "Montant (€)":
-
-        montant_remise = min(
-            float(remise_valeur),
-            sous_total
-        )
-
-    total_a_payer = (
-        sous_total - montant_remise
-    )
 
     nombre_seances = len(df_eleve)
 
     # --------------------------------------------------------
-    # INFORMATIONS
+    # CALCUL DU MONTANT
     # --------------------------------------------------------
+
+    if type_tarification == "Forfait mensuel":
+
+        montant_avant_remise = float(
+            forfait_mensuel or 0
+        )
+
+        libelle_tarif = (
+            f"Forfait mensuel : "
+            f"{montant_avant_remise:.2f} €"
+        )
+
+    else:
+
+        montant_avant_remise = (
+            total_heures * float(tarif or 0)
+        )
+
+        libelle_tarif = (
+            f"Tarif horaire : "
+            f"{float(tarif or 0):.2f} € / h"
+        )
+
+    remise = max(
+        0.0,
+        float(remise or 0)
+    )
+
+    montant_final = max(
+        0.0,
+        montant_avant_remise - remise
+    )
 
     date_facture = date.today().strftime(
         "%d/%m/%Y"
     )
+
+    # --------------------------------------------------------
+    # INFORMATIONS ÉLÈVE
+    # --------------------------------------------------------
 
     infos = [
         [
@@ -842,7 +886,10 @@ def generer_facture_pdf(
         ],
         [
             Paragraph("<b>Niveau / classe</b>", normal),
-            Paragraph(str(niveau), normal)
+            Paragraph(
+                str(niveau) if niveau else "—",
+                normal
+            )
         ],
         [
             Paragraph("<b>Date de facture</b>", normal),
@@ -857,17 +904,8 @@ def generer_facture_pdf(
             Paragraph(str(nombre_seances), normal)
         ],
         [
-            Paragraph(
-                "<b>Tarification</b>",
-                normal
-            ),
-            Paragraph(
-                (
-                    f"{type_tarification} — "
-                    f"{tarif:.2f} €"
-                ),
-                normal
-            )
+            Paragraph("<b>Tarification</b>", normal),
+            Paragraph(libelle_tarif, normal)
         ]
     ]
 
@@ -1078,42 +1116,61 @@ def generer_facture_pdf(
     # TOTAL
     # --------------------------------------------------------
 
-    lignes_total = [
-        [
-            Paragraph(
-                "<b>Sous-total</b>",
-                normal
-            ),
-            Paragraph(
-                f"<b>{sous_total:.2f} €</b>",
-                droite
-            )
-        ]
-    ]
+    lignes_total = []
 
-    if montant_remise > 0:
-
-        if remise_type == "Pourcentage":
-
-            texte_remise = (
-                f"Remise exceptionnelle "
-                f"({remise_valeur:.2f} %)"
-            )
-
-        else:
-
-            texte_remise = (
-                f"Remise exceptionnelle"
-            )
+    if type_tarification == "Forfait mensuel":
 
         lignes_total.append(
             [
                 Paragraph(
-                    texte_remise,
+                    "<b>Forfait mensuel</b>",
                     normal
                 ),
                 Paragraph(
-                    f"- {montant_remise:.2f} €",
+                    f"<b>{montant_avant_remise:.2f} €</b>",
+                    droite
+                )
+            ]
+        )
+
+    else:
+
+        lignes_total.append(
+            [
+                Paragraph(
+                    "<b>Total des heures</b>",
+                    normal
+                ),
+                Paragraph(
+                    f"<b>{total_heures:.2f} h</b>",
+                    droite
+                )
+            ]
+        )
+
+        lignes_total.append(
+            [
+                Paragraph(
+                    "<b>Tarif horaire</b>",
+                    normal
+                ),
+                Paragraph(
+                    f"<b>{float(tarif or 0):.2f} € / h</b>",
+                    droite
+                )
+            ]
+        )
+
+    if remise > 0:
+
+        lignes_total.append(
+            [
+                Paragraph(
+                    "<b>Remise exceptionnelle</b>",
+                    normal
+                ),
+                Paragraph(
+                    f"<b>- {remise:.2f} €</b>",
                     droite
                 )
             ]
@@ -1126,7 +1183,7 @@ def generer_facture_pdf(
                 normal
             ),
             Paragraph(
-                f"<b>{total_a_payer:.2f} €</b>",
+                f"<b>{montant_final:.2f} €</b>",
                 droite
             )
         ]
@@ -1181,7 +1238,9 @@ def generer_facture_pdf(
     # BILAN
     # --------------------------------------------------------
 
-    bilan = analyser_observations(df_eleve)
+    bilan = analyser_observations(
+        df_eleve
+    )
 
     if bilan:
 
@@ -1494,8 +1553,7 @@ if menu == "📚 Gestion des séances":
 
         st.warning(
             "Aucun élève enregistré. "
-            "Ajoute d'abord un élève dans "
-            "l'onglet 👨‍🎓 Élèves."
+            "Ajoute d'abord un élève dans l'onglet 👨‍🎓 Élèves."
         )
 
     elif action == "➕ Nouvelle séance":
@@ -1539,10 +1597,6 @@ if menu == "📚 Gestion des séances":
             key="nouvelle_mode"
         )
 
-        # ----------------------------------------------------
-        # DISCIPLINE
-        # ----------------------------------------------------
-
         disciplines_selection = st.multiselect(
             "Discipline(s)",
             DISCIPLINES,
@@ -1551,29 +1605,20 @@ if menu == "📚 Gestion des séances":
         )
 
         discipline_manuel = st.text_input(
-            "➕ Ajouter une discipline",
-            key="nouvelle_discipline_manuel",
-            placeholder="Ex. Français juridique"
+            "Précision / autre discipline",
+            key="nouvelle_discipline_manuel"
         )
 
-        disciplines_finales = [
-            d for d in disciplines_selection
-            if d != "Autre"
-        ]
+        disciplines = ", ".join(
+            disciplines_selection
+        )
 
         if discipline_manuel.strip():
 
-            disciplines_finales.append(
-                discipline_manuel.strip()
-            )
+            if disciplines:
+                disciplines += " — "
 
-        disciplines = ", ".join(
-            disciplines_finales
-        )
-
-        # ----------------------------------------------------
-        # CONTENU
-        # ----------------------------------------------------
+            disciplines += discipline_manuel.strip()
 
         contenu_selection = st.multiselect(
             "Contenu",
@@ -1597,10 +1642,6 @@ if menu == "📚 Gestion des séances":
 
             contenu += contenu_manuel.strip()
 
-        # ----------------------------------------------------
-        # TRAVAIL
-        # ----------------------------------------------------
-
         travail_selection = st.multiselect(
             "Travail à faire",
             TRAVAUX,
@@ -1613,10 +1654,7 @@ if menu == "📚 Gestion des séances":
         )
 
         travail = ", ".join(
-            [
-                x for x in travail_selection
-                if x != "Autre"
-            ]
+            travail_selection
         )
 
         if travail_manuel.strip():
@@ -1625,10 +1663,6 @@ if menu == "📚 Gestion des séances":
                 travail += " — "
 
             travail += travail_manuel.strip()
-
-        # ----------------------------------------------------
-        # OBSERVATIONS
-        # ----------------------------------------------------
 
         observations_selection = st.multiselect(
             "Observations",
@@ -1643,10 +1677,7 @@ if menu == "📚 Gestion des séances":
         )
 
         observations_finales = ", ".join(
-            [
-                x for x in observations_selection
-                if x != "Autre"
-            ]
+            observations_selection
         )
 
         if observation_manuel.strip():
@@ -1657,10 +1688,6 @@ if menu == "📚 Gestion des séances":
             observations_finales += (
                 observation_manuel.strip()
             )
-
-        # ----------------------------------------------------
-        # ENREGISTRER
-        # ----------------------------------------------------
 
         if st.button(
             "💾 Enregistrer la séance",
@@ -1690,17 +1717,20 @@ if menu == "📚 Gestion des séances":
 
             nouvelle_seance = {
 
-                "eleve":
-                    eleve,
+                "eleve": eleve,
 
                 "date":
                     date_seance.isoformat(),
 
                 "heure_debut":
-                    heure_debut.strftime("%H:%M:%S"),
+                    heure_debut.strftime(
+                        "%H:%M:%S"
+                    ),
 
                 "heure_fin":
-                    heure_fin.strftime("%H:%M:%S"),
+                    heure_fin.strftime(
+                        "%H:%M:%S"
+                    ),
 
                 "duree_minutes":
                     duree,
@@ -1761,19 +1791,19 @@ if menu == "📚 Gestion des séances":
 
                 st.code(str(e))
 
-    # ========================================================
-    # MODIFIER UNE SÉANCE
-    # ========================================================
-
     else:
 
-        st.subheader("✏️ Modifier une séance")
+        st.subheader(
+            "✏️ Modifier une séance"
+        )
 
         df = recuperer_seances()
 
         if df.empty:
 
-            st.info("Aucune séance enregistrée.")
+            st.info(
+                "Aucune séance enregistrée."
+            )
 
         else:
 
@@ -1849,7 +1879,7 @@ if menu == "📚 Gestion des séances":
                 ],
                 index=(
                     0
-                    if ligne.get("mode") == "Présentiel"
+                    if ligne["mode"] == "Présentiel"
                     else 1
                 )
             )
@@ -1926,10 +1956,14 @@ if menu == "📚 Gestion des séances":
                         nouvelle_date.isoformat(),
 
                     "heure_debut":
-                        heure_debut.strftime("%H:%M:%S"),
+                        heure_debut.strftime(
+                            "%H:%M:%S"
+                        ),
 
                     "heure_fin":
-                        heure_fin.strftime("%H:%M:%S"),
+                        heure_fin.strftime(
+                            "%H:%M:%S"
+                        ),
 
                     "duree_minutes":
                         duree,
@@ -2027,55 +2061,46 @@ elif menu == "📖 Cahier de texte":
             df["eleve"] == eleve
         ]
 
-        if df_eleve.empty:
+        for _, ligne in df_eleve.sort_values(
+            "date",
+            ascending=False
+        ).iterrows():
 
-            st.info(
-                "Aucune séance pour cet élève."
+            st.markdown("---")
+
+            st.write(
+                f"### 📅 {ligne['date']}"
             )
 
-        else:
+            st.write(
+                f"**Horaire :** "
+                f"{str(ligne['heure_debut'])[:5]} → "
+                f"{str(ligne['heure_fin'])[:5]}"
+            )
 
-            for _, ligne in df_eleve.sort_values(
-                "date",
-                ascending=False
-            ).iterrows():
+            st.write(
+                f"**Mode :** {ligne.get('mode', '')}"
+            )
 
-                st.markdown("---")
+            st.write(
+                f"**Discipline :** "
+                f"{ligne.get('disciplines', '')}"
+            )
 
-                st.write(
-                    f"### 📅 {ligne['date']}"
-                )
+            st.write(
+                f"**Contenu :** "
+                f"{ligne.get('contenu', '')}"
+            )
 
-                st.write(
-                    f"**Horaire :** "
-                    f"{str(ligne['heure_debut'])[:5]} → "
-                    f"{str(ligne['heure_fin'])[:5]}"
-                )
+            st.write(
+                f"**Travail :** "
+                f"{ligne.get('travail', '')}"
+            )
 
-                st.write(
-                    f"**Mode :** "
-                    f"{ligne.get('mode', '')}"
-                )
-
-                st.write(
-                    f"**Discipline :** "
-                    f"{ligne.get('disciplines', '')}"
-                )
-
-                st.write(
-                    f"**Contenu :** "
-                    f"{ligne.get('contenu', '')}"
-                )
-
-                st.write(
-                    f"**Travail :** "
-                    f"{ligne.get('travail', '')}"
-                )
-
-                st.write(
-                    f"**Observations :** "
-                    f"{ligne.get('observations', '')}"
-                )
+            st.write(
+                f"**Observations :** "
+                f"{ligne.get('observations', '')}"
+            )
 
 
 # ============================================================
@@ -2110,68 +2135,62 @@ elif menu == "📊 Bilan":
             df["eleve"] == eleve
         ].copy()
 
-        if df_eleve.empty:
+        total_minutes = pd.to_numeric(
+            df_eleve["duree_minutes"],
+            errors="coerce"
+        ).fillna(0).sum()
 
-            st.info("Aucune séance.")
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            st.metric(
+                "Nombre de séances",
+                len(df_eleve)
+            )
+
+        with col2:
+
+            st.metric(
+                "Nombre d'heures",
+                f"{total_minutes / 60:.2f} h"
+            )
+
+        st.subheader("📊 Observations")
+
+        bilan = analyser_observations(
+            df_eleve
+        )
+
+        if bilan:
+
+            for observation, nombre in bilan.items():
+
+                st.write(
+                    f"**{observation} :** "
+                    f"{nombre}/{len(df_eleve)} séances"
+                )
 
         else:
 
-            total_minutes = pd.to_numeric(
-                df_eleve["duree_minutes"],
-                errors="coerce"
-            ).fillna(0).sum()
+            st.info(
+                "Aucune observation enregistrée."
+            )
 
-            col1, col2 = st.columns(2)
+        st.subheader(
+            "📝 Observation automatique"
+        )
 
-            with col1:
-
-                st.metric(
-                    "Nombre de séances",
-                    len(df_eleve)
-                )
-
-            with col2:
-
-                st.metric(
-                    "Nombre d'heures",
-                    f"{total_minutes / 60:.2f} h"
-                )
-
-            st.subheader("📊 Observations")
-
-            bilan = analyser_observations(
+        st.info(
+            generer_observation_automatique(
                 df_eleve
             )
+        )
 
-            if bilan:
-
-                for observation, nombre in bilan.items():
-
-                    st.write(
-                        f"**{observation} :** "
-                        f"{nombre}/{len(df_eleve)} séances"
-                    )
-
-            else:
-
-                st.info(
-                    "Aucune observation enregistrée."
-                )
-
-            st.subheader(
-                "📝 Observation automatique"
-            )
-
-            st.info(
-                generer_observation_automatique(
-                    df_eleve
-                )
-            )
-
-            st.dataframe(
-                df_eleve,
-                use_container_width=True
-            )
+        st.dataframe(
+            df_eleve,
+            use_container_width=True
+        )
 
 
 # ============================================================
@@ -2184,15 +2203,13 @@ elif menu == "🧾 Facturation":
 
     df = recuperer_seances()
 
+    df_eleves = recuperer_eleves()
+
     if df.empty:
 
         st.info("Aucune séance.")
 
     else:
-
-        # ----------------------------------------------------
-        # ÉLÈVE
-        # ----------------------------------------------------
 
         eleves = sorted(
             df["eleve"]
@@ -2208,122 +2225,73 @@ elif menu == "🧾 Facturation":
         )
 
         # ----------------------------------------------------
-        # RÉCUPÉRATION DES INFORMATIONS DE L'ÉLÈVE
+        # RÉCUPÉRATION DES INFORMATIONS ÉLÈVE
         # ----------------------------------------------------
 
-        df_eleves = recuperer_eleves()
-
-        infos_eleve = df_eleves[
+        ligne_eleve = df_eleves[
             df_eleves.apply(
                 lambda ligne:
-                    (
-                        f"{ligne.get('prenom', '')} "
-                        f"{ligne.get('nom', '')}"
-                    ).strip()
-                    == eleve,
+                nom_complet_eleve(ligne) == eleve,
                 axis=1
             )
         ]
 
-        if not infos_eleve.empty:
+        niveau = ""
 
-            ligne_eleve = infos_eleve.iloc[0]
+        type_tarification_eleve = "Tarif horaire"
+        tarif_eleve = 0.0
+        forfait_eleve = 0.0
+        contrat_eleve = ""
 
-            niveau = ligne_eleve.get(
-                "classe_actuelle",
-                ""
+        if not ligne_eleve.empty:
+
+            ligne_info = ligne_eleve.iloc[0]
+
+            niveau = str(
+                ligne_info.get(
+                    "classe_actuelle",
+                    ""
+                )
             )
 
-            if pd.isna(niveau):
-                niveau = ""
-
-            type_tarification = ligne_eleve.get(
-                "type_tarification",
-                "Tarif horaire"
+            type_tarification_eleve = (
+                str(
+                    ligne_info.get(
+                        "type_tarification",
+                        ""
+                    )
+                )
+                or "Tarif horaire"
             )
 
-            if pd.isna(type_tarification):
-                type_tarification = "Tarif horaire"
-
-            tarif_horaire = ligne_eleve.get(
-                "tarif_horaire",
-                0
+            tarif_eleve = pd.to_numeric(
+                ligne_info.get(
+                    "tarif_horaire",
+                    0
+                ),
+                errors="coerce"
             )
 
-            if pd.isna(tarif_horaire):
-                tarif_horaire = 0.0
-
-            forfait_mensuel = ligne_eleve.get(
-                "forfait_mensuel",
-                0
+            forfait_eleve = pd.to_numeric(
+                ligne_info.get(
+                    "forfait_mensuel",
+                    0
+                ),
+                errors="coerce"
             )
 
-            if pd.isna(forfait_mensuel):
-                forfait_mensuel = 0.0
-
-        else:
-
-            niveau = ""
-
-            type_tarification = "Tarif horaire"
-
-            tarif_horaire = 0.0
-
-            forfait_mensuel = 0.0
-
-        # ----------------------------------------------------
-        # INFORMATIONS
-        # ----------------------------------------------------
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-
-            st.info(
-                f"🎓 **Niveau / classe :** {niveau}"
+            contrat_eleve = str(
+                ligne_info.get(
+                    "contrat",
+                    ""
+                )
             )
 
-        with col2:
+            if pd.isna(tarif_eleve):
+                tarif_eleve = 0.0
 
-            st.info(
-                f"💶 **Tarification :** "
-                f"{type_tarification}"
-            )
-
-        # ----------------------------------------------------
-        # TARIF RÉCUPÉRÉ
-        # ----------------------------------------------------
-
-        if type_tarification == "Forfait mensuel":
-
-            tarif_defaut = float(
-                forfait_mensuel
-            )
-
-        else:
-
-            tarif_defaut = float(
-                tarif_horaire
-            )
-
-        tarif = st.number_input(
-            (
-                "Forfait mensuel (€)"
-                if type_tarification == "Forfait mensuel"
-                else "Tarif horaire (€)"
-            ),
-            min_value=0.0,
-            value=tarif_defaut,
-            step=1.0,
-            key="facture_tarif"
-        )
-
-        st.caption(
-            "Le tarif est récupéré automatiquement "
-            "depuis la fiche de l'élève. "
-            "Tu peux exceptionnellement le modifier "
-            "pour cette facture."
-        )
+            if pd.isna(forfait_eleve):
+                forfait_eleve = 0.0
 
         # ----------------------------------------------------
         # PÉRIODE
@@ -2445,44 +2413,67 @@ elif menu == "🧾 Facturation":
         )
 
         # ----------------------------------------------------
-        # REMISE EXCEPTIONNELLE
+        # TARIFICATION
         # ----------------------------------------------------
 
-        st.subheader(
-            "🏷️ Remise exceptionnelle"
-        )
+        st.subheader("💶 Tarification")
 
-        remise_type = st.selectbox(
-            "Type de remise",
+        type_tarification = st.selectbox(
+            "Type de tarification",
             [
-                "Aucune",
-                "Pourcentage",
-                "Montant (€)"
+                "Tarif horaire",
+                "Forfait mensuel"
             ],
-            key="facture_remise_type"
+            index=(
+                1
+                if type_tarification_eleve == "Forfait mensuel"
+                else 0
+            ),
+            key="facture_type_tarification"
         )
 
-        remise_valeur = 0.0
+        if type_tarification == "Tarif horaire":
 
-        if remise_type == "Pourcentage":
-
-            remise_valeur = st.number_input(
-                "Remise (%)",
+            tarif = st.number_input(
+                "Tarif horaire (€)",
                 min_value=0.0,
-                max_value=100.0,
-                value=0.0,
+                value=float(tarif_eleve),
                 step=1.0,
-                key="facture_remise_pourcentage"
+                key="facture_tarif"
             )
 
-        elif remise_type == "Montant (€)":
+            forfait_mensuel = 0.0
 
-            remise_valeur = st.number_input(
-                "Montant de la remise (€)",
+        else:
+
+            forfait_mensuel = st.number_input(
+                "Forfait mensuel (€)",
                 min_value=0.0,
-                value=0.0,
-                step=1.0,
-                key="facture_remise_montant"
+                value=float(forfait_eleve),
+                step=5.0,
+                key="facture_forfait"
+            )
+
+            tarif = 0.0
+
+        # ----------------------------------------------------
+        # REMISE
+        # ----------------------------------------------------
+
+        remise = st.number_input(
+            "Remise exceptionnelle (€)",
+            min_value=0.0,
+            value=0.0,
+            step=5.0,
+            key="facture_remise"
+        )
+
+        if remise > 0:
+
+            st.info(
+                f"Une remise exceptionnelle de "
+                f"{remise:.2f} € sera appliquée "
+                f"uniquement à cette facture."
             )
 
         # ----------------------------------------------------
@@ -2509,7 +2500,7 @@ elif menu == "🧾 Facturation":
             )
 
         # ----------------------------------------------------
-        # FILTRAGE DES SÉANCES
+        # FILTRAGE
         # ----------------------------------------------------
 
         df_eleve = df[
@@ -2559,49 +2550,29 @@ elif menu == "🧾 Facturation":
                 total_minutes / 60
             )
 
+            nombre_seances = len(
+                df_eleve
+            )
+
             # ------------------------------------------------
-            # CALCUL DU SOUS-TOTAL
+            # CALCUL
             # ------------------------------------------------
 
             if type_tarification == "Forfait mensuel":
 
-                sous_total = float(tarif)
+                montant_avant_remise = (
+                    float(forfait_mensuel)
+                )
 
             else:
 
-                sous_total = (
-                    total_heures
-                    * float(tarif)
+                montant_avant_remise = (
+                    total_heures * float(tarif)
                 )
 
-            # ------------------------------------------------
-            # CALCUL REMISE
-            # ------------------------------------------------
-
-            montant_remise = 0.0
-
-            if remise_type == "Pourcentage":
-
-                montant_remise = (
-                    sous_total
-                    * remise_valeur
-                    / 100
-                )
-
-            elif remise_type == "Montant (€)":
-
-                montant_remise = min(
-                    remise_valeur,
-                    sous_total
-                )
-
-            total_a_payer = (
-                sous_total
-                - montant_remise
-            )
-
-            nombre_seances = len(
-                df_eleve
+            montant_final = max(
+                0.0,
+                montant_avant_remise - remise
             )
 
             # ------------------------------------------------
@@ -2628,42 +2599,46 @@ elif menu == "🧾 Facturation":
 
                 st.metric(
                     "Total à payer",
-                    f"{total_a_payer:.2f} €"
+                    f"{montant_final:.2f} €"
                 )
 
             # ------------------------------------------------
-            # RÉSUMÉ
+            # INFORMATIONS ÉLÈVE
             # ------------------------------------------------
 
             st.subheader(
-                "💶 Résumé financier"
+                "👨‍🎓 Informations élève"
             )
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2 = st.columns(2)
 
             with col1:
 
                 st.write(
-                    f"**Sous-total :** "
-                    f"{sous_total:.2f} €"
+                    f"**Élève :** {eleve}"
+                )
+
+                st.write(
+                    f"**Niveau / classe :** "
+                    f"{niveau or 'Non renseigné'}"
                 )
 
             with col2:
 
                 st.write(
-                    f"**Remise :** "
-                    f"- {montant_remise:.2f} €"
+                    f"**Tarification :** "
+                    f"{type_tarification}"
                 )
 
-            with col3:
+                if contrat_eleve:
 
-                st.write(
-                    f"**TOTAL :** "
-                    f"{total_a_payer:.2f} €"
-                )
+                    st.write(
+                        f"**Contrat :** "
+                        f"{contrat_eleve}"
+                    )
 
             # ------------------------------------------------
-            # TABLEAU DES SÉANCES
+            # BILAN DES SÉANCES
             # ------------------------------------------------
 
             st.subheader(
@@ -2690,8 +2665,7 @@ elif menu == "🧾 Facturation":
             )
 
             tableau["Durée"] = (
-                tableau["duree_minutes"]
-                / 60
+                tableau["duree_minutes"] / 60
             ).round(2).astype(str) + " h"
 
             tableau_facture = tableau[
@@ -2716,7 +2690,30 @@ elif menu == "🧾 Facturation":
             )
 
             # ------------------------------------------------
-            # BILAN OBSERVATIONS
+            # RÉSUMÉ FINANCIER
+            # ------------------------------------------------
+
+            st.subheader(
+                "💶 Résumé financier"
+            )
+
+            st.write(
+                f"**Montant avant remise :** "
+                f"{montant_avant_remise:.2f} €"
+            )
+
+            st.write(
+                f"**Remise exceptionnelle :** "
+                f"{remise:.2f} €"
+            )
+
+            st.write(
+                f"**TOTAL À PAYER :** "
+                f"**{montant_final:.2f} €**"
+            )
+
+            # ------------------------------------------------
+            # OBSERVATIONS
             # ------------------------------------------------
 
             st.subheader(
@@ -2747,13 +2744,8 @@ elif menu == "🧾 Facturation":
             else:
 
                 st.info(
-                    "Aucune observation enregistrée "
-                    "pour cette période."
+                    "Aucune observation enregistrée."
                 )
-
-            # ------------------------------------------------
-            # OBSERVATION AUTOMATIQUE
-            # ------------------------------------------------
 
             st.subheader(
                 "📝 Observation automatique"
@@ -2781,7 +2773,7 @@ elif menu == "🧾 Facturation":
             )
 
             # ------------------------------------------------
-            # GÉNÉRER PDF
+            # GÉNÉRATION
             # ------------------------------------------------
 
             if st.button(
@@ -2792,17 +2784,17 @@ elif menu == "🧾 Facturation":
                 try:
 
                     pdf = generer_facture_pdf(
-                        df_eleve,
-                        eleve,
-                        niveau,
-                        type_tarification,
-                        tarif,
-                        remise_type,
-                        remise_valeur,
-                        numero_facture,
-                        periode,
-                        statut,
-                        date_paiement
+                        df_eleve=df_eleve,
+                        eleve=eleve,
+                        niveau=niveau,
+                        tarif=tarif,
+                        type_tarification=type_tarification,
+                        forfait_mensuel=forfait_mensuel,
+                        remise=remise,
+                        numero_facture=numero_facture,
+                        periode=periode,
+                        statut=statut,
+                        date_paiement=date_paiement
                     )
 
                     st.session_state[
@@ -2852,6 +2844,14 @@ elif menu == "🧾 Facturation":
                     mime="application/pdf"
                 )
 
+                st.info(
+                    "La facture contient le nom de l'élève, "
+                    "son niveau, le détail des séances, "
+                    "la tarification, la remise éventuelle, "
+                    "le montant final, le bilan pédagogique "
+                    "et le statut du paiement."
+                )
+
 
 # ============================================================
 # GESTION DES ÉLÈVES
@@ -2859,7 +2859,9 @@ elif menu == "🧾 Facturation":
 
 elif menu == "👨‍🎓 Élèves":
 
-    st.header("👨‍🎓 Gestion des élèves")
+    st.header(
+        "👨‍🎓 Gestion des élèves"
+    )
 
     action_eleve = st.radio(
         "Action",
@@ -2872,12 +2874,14 @@ elif menu == "👨‍🎓 Élèves":
     )
 
     # ========================================================
-    # AJOUT
+    # AJOUTER
     # ========================================================
 
     if action_eleve == "➕ Ajouter un élève":
 
-        st.subheader("➕ Ajouter un élève")
+        st.subheader(
+            "➕ Ajouter un élève"
+        )
 
         prenom = st.text_input(
             "Prénom *",
@@ -2890,12 +2894,18 @@ elif menu == "👨‍🎓 Élèves":
         )
 
         classe = st.text_input(
-            "Niveau / classe",
+            "Niveau / classe actuelle",
             key="eleve_nouvelle_classe",
-            placeholder="Ex. 4e, 2nde, Terminale..."
+            placeholder="Ex. 4e, 3e, Seconde..."
         )
 
-        st.subheader("💶 Tarification")
+        # ----------------------------------------------------
+        # TARIFICATION
+        # ----------------------------------------------------
+
+        st.subheader(
+            "💶 Tarification"
+        )
 
         type_tarification = st.selectbox(
             "Type de tarification",
@@ -2903,8 +2913,11 @@ elif menu == "👨‍🎓 Élèves":
                 "Tarif horaire",
                 "Forfait mensuel"
             ],
-            key="eleve_nouveau_type_tarification"
+            key="eleve_type_tarification"
         )
+
+        tarif_horaire = 0.0
+        forfait_mensuel = 0.0
 
         if type_tarification == "Tarif horaire":
 
@@ -2913,22 +2926,56 @@ elif menu == "👨‍🎓 Élèves":
                 min_value=0.0,
                 value=30.0,
                 step=1.0,
-                key="eleve_nouveau_tarif_horaire"
+                key="eleve_tarif_horaire"
             )
 
-            forfait_mensuel = 0.0
-
         else:
-
-            tarif_horaire = 0.0
 
             forfait_mensuel = st.number_input(
                 "Forfait mensuel (€)",
                 min_value=0.0,
-                value=120.0,
+                value=250.0,
                 step=5.0,
-                key="eleve_nouveau_forfait_mensuel"
+                key="eleve_forfait_mensuel"
             )
+
+        # ----------------------------------------------------
+        # CONTRAT
+        # ----------------------------------------------------
+
+        st.subheader(
+            "📄 Contrat / modalités"
+        )
+
+        contrat_selection = st.multiselect(
+            "Modalités convenues avec la famille",
+            CONTRATS,
+            key="eleve_contrat_selection"
+        )
+
+        contrat_manuel = st.text_area(
+            "Précisions / modalités particulières",
+            key="eleve_contrat_manuel",
+            placeholder=(
+                "Ex. paiement en début de mois, "
+                "annulation 24 h à l'avance..."
+            )
+        )
+
+        contrat = ", ".join(
+            contrat_selection
+        )
+
+        if contrat_manuel.strip():
+
+            if contrat:
+                contrat += " — "
+
+            contrat += contrat_manuel.strip()
+
+        # ----------------------------------------------------
+        # ENREGISTREMENT
+        # ----------------------------------------------------
 
         if st.button(
             "💾 Ajouter l'élève",
@@ -2949,8 +2996,7 @@ elif menu == "👨‍🎓 Élèves":
 
                 nouvel_eleve = {
 
-                    "prenom":
-                        prenom,
+                    "prenom": prenom,
 
                     "nom":
                         nom if nom else None,
@@ -2965,7 +3011,10 @@ elif menu == "👨‍🎓 Élèves":
                         tarif_horaire,
 
                     "forfait_mensuel":
-                        forfait_mensuel
+                        forfait_mensuel,
+
+                    "contrat":
+                        contrat if contrat else None
                 }
 
                 try:
@@ -2994,7 +3043,7 @@ elif menu == "👨‍🎓 Élèves":
                     st.code(str(e))
 
     # ========================================================
-    # MODIFICATION
+    # MODIFIER
     # ========================================================
 
     elif action_eleve == "✏️ Modifier un élève":
@@ -3017,24 +3066,8 @@ elif menu == "👨‍🎓 Élèves":
 
             for _, ligne in df_eleves.iterrows():
 
-                prenom = str(
-                    ligne.get(
-                        "prenom",
-                        ""
-                    )
-                ).strip()
-
-                nom = str(
-                    ligne.get(
-                        "nom",
-                        ""
-                    )
-                ).strip()
-
-                affichage = (
-                    f"{prenom} {nom}"
-                    if nom
-                    else prenom
+                affichage = nom_complet_eleve(
+                    ligne
                 )
 
                 choix_eleves.append(
@@ -3047,8 +3080,7 @@ elif menu == "👨‍🎓 Élèves":
             choix = st.selectbox(
                 "Élève à modifier",
                 choix_eleves,
-                format_func=lambda x: x[1],
-                key="eleve_a_modifier"
+                format_func=lambda x: x[1]
             )
 
             id_eleve = choix[0]
@@ -3073,12 +3105,13 @@ elif menu == "👨‍🎓 Élèves":
                 ""
             )
 
-            if pd.isna(nom_valeur):
-                nom_valeur = ""
-
             nom_modifie = st.text_input(
                 "Nom",
-                value=str(nom_valeur),
+                value=(
+                    str(nom_valeur)
+                    if pd.notna(nom_valeur)
+                    else ""
+                ),
                 key="eleve_mod_nom"
             )
 
@@ -3087,33 +3120,37 @@ elif menu == "👨‍🎓 Élèves":
                 ""
             )
 
-            if pd.isna(classe_valeur):
-                classe_valeur = ""
-
             classe_modifiee = st.text_input(
-                "Niveau / classe",
-                value=str(classe_valeur),
+                "Niveau / classe actuelle",
+                value=(
+                    str(classe_valeur)
+                    if pd.notna(classe_valeur)
+                    else ""
+                ),
                 key="eleve_mod_classe"
             )
 
-            st.subheader("💶 Tarification")
+            # ------------------------------------------------
+            # TARIFICATION
+            # ------------------------------------------------
 
-            type_actuel = ligne.get(
-                "type_tarification",
-                "Tarif horaire"
+            st.subheader(
+                "💶 Tarification"
             )
 
-            if pd.isna(type_actuel):
-                type_actuel = "Tarif horaire"
+            type_existant = str(
+                ligne.get(
+                    "type_tarification",
+                    ""
+                )
+            )
 
-            type_actuel = str(type_actuel)
-
-            if type_actuel not in [
+            if type_existant not in [
                 "Tarif horaire",
                 "Forfait mensuel"
             ]:
 
-                type_actuel = "Tarif horaire"
+                type_existant = "Tarif horaire"
 
             type_tarification_modifie = st.selectbox(
                 "Type de tarification",
@@ -3121,63 +3158,119 @@ elif menu == "👨‍🎓 Élèves":
                     "Tarif horaire",
                     "Forfait mensuel"
                 ],
-                index=[
-                    "Tarif horaire",
-                    "Forfait mensuel"
-                ].index(type_actuel),
+                index=(
+                    0
+                    if type_existant == "Tarif horaire"
+                    else 1
+                ),
                 key="eleve_mod_type_tarification"
             )
 
-            if (
-                type_tarification_modifie
-                == "Tarif horaire"
-            ):
-
-                tarif_horaire_actuel = ligne.get(
+            tarif_existant = pd.to_numeric(
+                ligne.get(
                     "tarif_horaire",
-                    0
-                )
+                    30
+                ),
+                errors="coerce"
+            )
 
-                if pd.isna(
-                    tarif_horaire_actuel
-                ):
-                    tarif_horaire_actuel = 0.0
+            if pd.isna(tarif_existant):
+                tarif_existant = 30.0
+
+            forfait_existant = pd.to_numeric(
+                ligne.get(
+                    "forfait_mensuel",
+                    250
+                ),
+                errors="coerce"
+            )
+
+            if pd.isna(forfait_existant):
+                forfait_existant = 250.0
+
+            tarif_horaire_modifie = 0.0
+            forfait_mensuel_modifie = 0.0
+
+            if type_tarification_modifie == "Tarif horaire":
 
                 tarif_horaire_modifie = st.number_input(
                     "Tarif horaire (€)",
                     min_value=0.0,
-                    value=float(
-                        tarif_horaire_actuel
-                    ),
+                    value=float(tarif_existant),
                     step=1.0,
-                    key="eleve_mod_tarif_horaire"
+                    key="eleve_mod_tarif"
                 )
-
-                forfait_mensuel_modifie = 0.0
 
             else:
-
-                tarif_horaire_modifie = 0.0
-
-                forfait_mensuel_actuel = ligne.get(
-                    "forfait_mensuel",
-                    0
-                )
-
-                if pd.isna(
-                    forfait_mensuel_actuel
-                ):
-                    forfait_mensuel_actuel = 0.0
 
                 forfait_mensuel_modifie = st.number_input(
                     "Forfait mensuel (€)",
                     min_value=0.0,
-                    value=float(
-                        forfait_mensuel_actuel
-                    ),
+                    value=float(forfait_existant),
                     step=5.0,
-                    key="eleve_mod_forfait_mensuel"
+                    key="eleve_mod_forfait"
                 )
+
+            # ------------------------------------------------
+            # CONTRAT
+            # ------------------------------------------------
+
+            st.subheader(
+                "📄 Contrat / modalités"
+            )
+
+            contrat_existant = str(
+                ligne.get(
+                    "contrat",
+                    ""
+                )
+            )
+
+            if contrat_existant == "nan":
+                contrat_existant = ""
+
+            st.text_area(
+                "Contrat actuellement enregistré",
+                value=contrat_existant,
+                disabled=True
+            )
+
+            contrat_selection_modifie = st.multiselect(
+                "Nouvelles modalités",
+                CONTRATS,
+                key="eleve_mod_contrat_selection"
+            )
+
+            contrat_manuel_modifie = st.text_area(
+                "Précisions / modalités particulières",
+                key="eleve_mod_contrat_manuel"
+            )
+
+            if (
+                contrat_selection_modifie
+                or contrat_manuel_modifie.strip()
+            ):
+
+                contrat_modifie = ", ".join(
+                    contrat_selection_modifie
+                )
+
+                if contrat_manuel_modifie.strip():
+
+                    if contrat_modifie:
+                        contrat_modifie += " — "
+
+                    contrat_modifie += (
+                        contrat_manuel_modifie.strip()
+                    )
+
+            else:
+
+                contrat_modifie = contrat_existant
+
+            # ------------------------------------------------
+            # SAUVEGARDE
+            # ------------------------------------------------
 
             if st.button(
                 "💾 Enregistrer les modifications",
@@ -3218,7 +3311,12 @@ elif menu == "👨‍🎓 Élèves":
                             tarif_horaire_modifie,
 
                         "forfait_mensuel":
-                            forfait_mensuel_modifie
+                            forfait_mensuel_modifie,
+
+                        "contrat":
+                            contrat_modifie
+                            if contrat_modifie
+                            else None
                     }
 
                     try:
@@ -3237,7 +3335,7 @@ elif menu == "👨‍🎓 Élèves":
                         )
 
                         st.success(
-                            "✅ Élève et tarification modifiés."
+                            "✅ Élève modifié."
                         )
 
                         st.rerun()
@@ -3251,7 +3349,7 @@ elif menu == "👨‍🎓 Élèves":
                         st.code(str(e))
 
     # ========================================================
-    # SUPPRESSION
+    # SUPPRIMER
     # ========================================================
 
     else:
@@ -3274,24 +3372,8 @@ elif menu == "👨‍🎓 Élèves":
 
             for _, ligne in df_eleves.iterrows():
 
-                prenom = str(
-                    ligne.get(
-                        "prenom",
-                        ""
-                    )
-                ).strip()
-
-                nom = str(
-                    ligne.get(
-                        "nom",
-                        ""
-                    )
-                ).strip()
-
-                affichage = (
-                    f"{prenom} {nom}"
-                    if nom
-                    else prenom
+                affichage = nom_complet_eleve(
+                    ligne
                 )
 
                 choix_eleves.append(
@@ -3304,12 +3386,10 @@ elif menu == "👨‍🎓 Élèves":
             choix = st.selectbox(
                 "Élève à supprimer",
                 choix_eleves,
-                format_func=lambda x: x[1],
-                key="eleve_a_supprimer"
+                format_func=lambda x: x[1]
             )
 
             id_eleve = choix[0]
-
             nom_eleve = choix[1]
 
             st.warning(
@@ -3323,8 +3403,7 @@ elif menu == "👨‍🎓 Élèves":
             )
 
             confirmation = st.checkbox(
-                "Je confirme vouloir supprimer cet élève.",
-                key="confirmation_suppression_eleve"
+                "Je confirme vouloir supprimer cet élève."
             )
 
             if st.button(
