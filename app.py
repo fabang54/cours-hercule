@@ -109,6 +109,7 @@ DISCIPLINES = [
     "Culture générale"
 ]
 
+
 CONTENUS = [
     "Équations simples",
     "Fractions",
@@ -122,26 +123,173 @@ CONTENUS = [
     "Autre"
 ]
 
+
 TRAVAUX = [
     "Exercices du manuel",
     "Exercices supplémentaires",
     "Revoir le cours",
     "Apprendre le cours",
+    "Faire une fiche de révision",
+    "Revoir les notions difficiles",
     "Préparer le prochain cours",
-    "Aucun",
-    "Autre"
+    "Aucun"
 ]
 
+
+# ============================================================
+# OBSERVATIONS
+# ============================================================
+
 OBSERVATIONS = [
+
+    # --------------------------------------------------------
+    # ATTITUDE ET PARTICIPATION
+    # --------------------------------------------------------
+
     "Élève attentif",
-    "Élève fatigué",
-    "Élève distrait",
-    "Difficultés importantes",
-    "Difficultés de compréhension",
+    "Élève très attentif",
     "Bonne participation",
-    "Très bonne séance",
+    "Très bonne participation",
+    "Participation active",
+    "Participation satisfaisante",
+    "Élève motivé",
+    "Élève très motivé",
+    "Élève volontaire",
+    "Bonne attitude",
+    "Très bonne attitude",
+    "Élève sérieux",
+    "Élève très sérieux",
+    "Bonne implication",
+    "Très bonne implication",
+    "Travail régulier",
+
+    # --------------------------------------------------------
+    # CONCENTRATION
+    # --------------------------------------------------------
+
+    "Élève distrait",
+    "Manque de concentration",
+    "Concentration satisfaisante",
+    "Bonne concentration",
+    "Difficultés à rester concentré",
+    "Quelques moments de distraction",
+
+    # --------------------------------------------------------
+    # FATIGUE
+    # --------------------------------------------------------
+
+    "Élève fatigué",
+    "Élève très fatigué",
+    "Manque d'énergie",
+    "Baisse d'attention liée à la fatigue",
+
+    # --------------------------------------------------------
+    # COMPRÉHENSION
+    # --------------------------------------------------------
+
+    "Bonne compréhension",
+    "Très bonne compréhension",
+    "Compréhension satisfaisante",
+    "Difficultés de compréhension",
+    "Difficultés importantes",
+    "Notion à revoir",
+    "Notions à consolider",
+    "Besoin d'explications supplémentaires",
+    "Besoin d'un accompagnement renforcé",
+
+    # --------------------------------------------------------
+    # MÉTHODE ET ORGANISATION
+    # --------------------------------------------------------
+
+    "Bonne méthode de travail",
+    "Méthode de travail à améliorer",
+    "Manque de méthode",
+    "Difficultés d'organisation",
+    "Travail à structurer",
+    "Doit gagner en autonomie",
+    "Autonomie satisfaisante",
+    "Bonne autonomie",
+    "Très bonne autonomie",
+
+    # --------------------------------------------------------
+    # CALCUL ET RAISONNEMENT
+    # --------------------------------------------------------
+
+    "Calculs maîtrisés",
+    "Erreurs de calcul",
+    "Erreurs d'inattention",
+    "Difficultés en calcul",
+    "Raisonnement satisfaisant",
+    "Bon raisonnement",
+    "Très bon raisonnement",
+    "Difficultés de raisonnement",
+    "Démarche à améliorer",
+    "Bonne démarche de résolution",
+
+    # --------------------------------------------------------
+    # MÉMORISATION
+    # --------------------------------------------------------
+
+    "Cours bien mémorisé",
+    "Mémorisation satisfaisante",
+    "Difficultés de mémorisation",
+    "Notions insuffisamment mémorisées",
+    "Révisions nécessaires",
+
+    # --------------------------------------------------------
+    # TRAVAIL PERSONNEL
+    # --------------------------------------------------------
+
+    "Travail personnel satisfaisant",
+    "Travail personnel insuffisant",
+    "Travail personnel régulier",
+    "Travail personnel à renforcer",
+    "Exercices correctement réalisés",
+    "Exercices partiellement réalisés",
+    "Travail demandé non réalisé",
+
+    # --------------------------------------------------------
+    # PROGRESSION
+    # --------------------------------------------------------
+
     "Progrès constatés",
+    "Progrès importants",
+    "Progrès réguliers",
+    "Bonne progression",
+    "Très bonne progression",
+    "Notions en cours d'acquisition",
+    "Acquisitions satisfaisantes",
+    "Maîtrise en cours",
+    "Des efforts restent nécessaires",
+
+    # --------------------------------------------------------
+    # QUALITÉ DE LA SÉANCE
+    # --------------------------------------------------------
+
+    "Très bonne séance",
+    "Bonne séance",
+    "Séance satisfaisante",
+    "Séance productive",
+    "Séance très productive",
+    "Séance difficile",
+    "Séance à consolider",
+
+    # --------------------------------------------------------
+    # RECOMMANDATIONS
+    # --------------------------------------------------------
+
+    "Difficultés persistantes",
+    "Difficultés ponctuelles",
+    "Attention à maintenir les efforts",
     "Travail régulier recommandé",
+    "Davantage d'entraînement recommandé",
+    "Révisions recommandées",
+    "Consolidation nécessaire",
+
+    # --------------------------------------------------------
+    # PERSONNALISATION
+    # --------------------------------------------------------
+
     "Autre"
 ]
 
@@ -509,35 +657,117 @@ def generer_observation_automatique(df_eleve):
 
     phrases = []
 
-    attentif = bilan.get(
-        "Élève attentif",
-        0
+    def nb(texte):
+
+        return bilan.get(
+            texte,
+            0
+        )
+
+    # ========================================================
+    # ATTENTION
+    # ========================================================
+
+    attention = (
+        nb("Élève attentif")
+        + nb("Élève très attentif")
+        + nb("Bonne concentration")
+        + nb("Concentration satisfaisante")
     )
 
-    if attentif >= nombre_seances * 0.75:
+    distraction = (
+        nb("Élève distrait")
+        + nb("Manque de concentration")
+        + nb("Difficultés à rester concentré")
+        + nb("Quelques moments de distraction")
+    )
+
+    if attention >= nombre_seances * 0.75:
 
         phrases.append(
             "L'élève s'est montré attentif "
-            "sur la majorité des séances."
+            "et concentré sur la majorité des séances."
         )
 
-    elif attentif >= nombre_seances * 0.5:
+    elif attention >= nombre_seances * 0.5:
 
         phrases.append(
-            "L'attention de l'élève a été "
-            "globalement satisfaisante."
+            "L'attention et la concentration "
+            "sont globalement satisfaisantes."
         )
 
-    fatigue = bilan.get(
-        "Élève fatigué",
-        0
+    if distraction >= nombre_seances * 0.5:
+
+        phrases.append(
+            "Des difficultés de concentration "
+            "ont été observées régulièrement."
+        )
+
+    elif distraction > 0:
+
+        phrases.append(
+            "Quelques moments de distraction "
+            "ont été observés."
+        )
+
+    # ========================================================
+    # PARTICIPATION / MOTIVATION
+    # ========================================================
+
+    participation = (
+        nb("Bonne participation")
+        + nb("Très bonne participation")
+        + nb("Participation active")
+        + nb("Participation satisfaisante")
+    )
+
+    motivation = (
+        nb("Élève motivé")
+        + nb("Élève très motivé")
+        + nb("Élève volontaire")
+    )
+
+    implication = (
+        nb("Bonne implication")
+        + nb("Très bonne implication")
+    )
+
+    if participation >= nombre_seances * 0.5:
+
+        phrases.append(
+            "La participation de l'élève "
+            "est globalement satisfaisante."
+        )
+
+    if motivation >= nombre_seances * 0.5:
+
+        phrases.append(
+            "L'élève fait preuve d'une bonne motivation."
+        )
+
+    if implication >= nombre_seances * 0.5:
+
+        phrases.append(
+            "L'implication dans le travail "
+            "est très encourageante."
+        )
+
+    # ========================================================
+    # FATIGUE
+    # ========================================================
+
+    fatigue = (
+        nb("Élève fatigué")
+        + nb("Élève très fatigué")
+        + nb("Manque d'énergie")
+        + nb("Baisse d'attention liée à la fatigue")
     )
 
     if fatigue >= nombre_seances * 0.75:
 
         phrases.append(
-            "Une fatigue importante a été "
-            "observée sur la majorité des séances."
+            "Une fatigue importante a été observée "
+            "sur la majorité des séances."
         )
 
     elif fatigue >= nombre_seances * 0.5:
@@ -554,70 +784,208 @@ def generer_observation_automatique(df_eleve):
             "ont été observés."
         )
 
-    distrait = bilan.get(
-        "Élève distrait",
-        0
+    # ========================================================
+    # COMPRÉHENSION
+    # ========================================================
+
+    bonne_comprehension = (
+        nb("Bonne compréhension")
+        + nb("Très bonne compréhension")
+        + nb("Compréhension satisfaisante")
     )
 
-    if distrait >= nombre_seances * 0.5:
-
-        phrases.append(
-            "Des difficultés de concentration "
-            "ont été observées régulièrement."
-        )
-
-    elif distrait > 0:
-
-        phrases.append(
-            "Quelques moments de distraction "
-            "ont été observés."
-        )
-
-    participation = bilan.get(
-        "Bonne participation",
-        0
+    difficultes_comprehension = (
+        nb("Difficultés de compréhension")
+        + nb("Difficultés importantes")
+        + nb("Notion à revoir")
+        + nb("Notions à consolider")
+        + nb("Besoin d'explications supplémentaires")
+        + nb("Besoin d'un accompagnement renforcé")
     )
 
-    if participation >= nombre_seances * 0.5:
+    if bonne_comprehension >= nombre_seances * 0.5:
 
         phrases.append(
-            "La participation est globalement "
-            "satisfaisante."
+            "La compréhension des notions étudiées "
+            "est globalement satisfaisante."
         )
 
-    difficultes = bilan.get(
-        "Difficultés importantes",
-        0
-    )
-
-    comprehension = bilan.get(
-        "Difficultés de compréhension",
-        0
-    )
-
-    if difficultes > 0:
-
-        phrases.append(
-            "Certaines difficultés importantes "
-            "nécessitent encore un accompagnement."
-        )
-
-    elif comprehension > 0:
+    if difficultes_comprehension >= nombre_seances * 0.5:
 
         phrases.append(
             "Certaines notions nécessitent encore "
             "des explications et des consolidations."
         )
 
-    progres = bilan.get(
-        "Progrès constatés",
-        0
+    elif difficultes_comprehension > 0:
+
+        phrases.append(
+            "Quelques notions restent à consolider."
+        )
+
+    # ========================================================
+    # CALCUL
+    # ========================================================
+
+    erreurs_calcul = (
+        nb("Erreurs de calcul")
+        + nb("Difficultés en calcul")
+        + nb("Erreurs d'inattention")
+    )
+
+    if erreurs_calcul >= nombre_seances * 0.5:
+
+        phrases.append(
+            "Une attention particulière doit être "
+            "portée à la précision des calculs."
+        )
+
+    elif erreurs_calcul > 0:
+
+        phrases.append(
+            "Quelques erreurs de calcul ou "
+            "d'inattention ont été relevées."
+        )
+
+    # ========================================================
+    # RAISONNEMENT
+    # ========================================================
+
+    bon_raisonnement = (
+        nb("Bon raisonnement")
+        + nb("Très bon raisonnement")
+        + nb("Bonne démarche de résolution")
+        + nb("Raisonnement satisfaisant")
+    )
+
+    difficultes_raisonnement = (
+        nb("Difficultés de raisonnement")
+        + nb("Démarche à améliorer")
+    )
+
+    if bon_raisonnement >= nombre_seances * 0.5:
+
+        phrases.append(
+            "Le raisonnement et la démarche "
+            "de résolution sont satisfaisants."
+        )
+
+    if difficultes_raisonnement > 0:
+
+        phrases.append(
+            "La démarche de résolution "
+            "doit encore être consolidée."
+        )
+
+    # ========================================================
+    # MÉTHODE / AUTONOMIE
+    # ========================================================
+
+    bonne_methode = (
+        nb("Bonne méthode de travail")
+        + nb("Bonne autonomie")
+        + nb("Très bonne autonomie")
+        + nb("Autonomie satisfaisante")
+    )
+
+    methode_difficile = (
+        nb("Méthode de travail à améliorer")
+        + nb("Manque de méthode")
+        + nb("Difficultés d'organisation")
+        + nb("Travail à structurer")
+        + nb("Doit gagner en autonomie")
+    )
+
+    if bonne_methode >= nombre_seances * 0.5:
+
+        phrases.append(
+            "La méthode de travail et l'autonomie "
+            "sont satisfaisantes."
+        )
+
+    if methode_difficile > 0:
+
+        phrases.append(
+            "La méthode de travail et l'organisation "
+            "peuvent encore être améliorées."
+        )
+
+    # ========================================================
+    # MÉMORISATION
+    # ========================================================
+
+    memorisation_positive = (
+        nb("Cours bien mémorisé")
+        + nb("Mémorisation satisfaisante")
+    )
+
+    memorisation_difficile = (
+        nb("Difficultés de mémorisation")
+        + nb("Notions insuffisamment mémorisées")
+        + nb("Révisions nécessaires")
+    )
+
+    if memorisation_positive >= nombre_seances * 0.5:
+
+        phrases.append(
+            "Les notions étudiées sont correctement mémorisées."
+        )
+
+    if memorisation_difficile > 0:
+
+        phrases.append(
+            "Des révisions régulières sont nécessaires "
+            "pour consolider les acquis."
+        )
+
+    # ========================================================
+    # TRAVAIL PERSONNEL
+    # ========================================================
+
+    travail_positif = (
+        nb("Travail personnel satisfaisant")
+        + nb("Travail personnel régulier")
+        + nb("Exercices correctement réalisés")
+    )
+
+    travail_insuffisant = (
+        nb("Travail personnel insuffisant")
+        + nb("Travail personnel à renforcer")
+        + nb("Exercices partiellement réalisés")
+        + nb("Travail demandé non réalisé")
+    )
+
+    if travail_positif >= nombre_seances * 0.5:
+
+        phrases.append(
+            "Le travail personnel est régulier "
+            "et satisfaisant."
+        )
+
+    if travail_insuffisant > 0:
+
+        phrases.append(
+            "Le travail personnel doit être "
+            "davantage régulier et approfondi."
+        )
+
+    # ========================================================
+    # PROGRÈS
+    # ========================================================
+
+    progres = (
+        nb("Progrès constatés")
+        + nb("Progrès importants")
+        + nb("Progrès réguliers")
+        + nb("Bonne progression")
+        + nb("Très bonne progression")
+        + nb("Acquisitions satisfaisantes")
     )
 
     if progres >= nombre_seances * 0.5:
 
         phrases.append(
-            "Des progrès sont constatés "
+            "Des progrès réguliers sont constatés "
             "au cours de la période."
         )
 
@@ -627,17 +995,41 @@ def generer_observation_automatique(df_eleve):
             "Des progrès commencent à apparaître."
         )
 
-    tres_bonne = bilan.get(
-        "Très bonne séance",
-        0
+    # ========================================================
+    # TRÈS BONNE SÉANCE
+    # ========================================================
+
+    tres_bonne = (
+        nb("Très bonne séance")
+        + nb("Séance très productive")
     )
 
     if tres_bonne >= nombre_seances * 0.5:
 
         phrases.append(
-            "L'implication de l'élève est "
-            "très encourageante."
+            "Les séances sont très productives "
+            "et l'implication de l'élève est encourageante."
         )
+
+    # ========================================================
+    # DIFFICULTÉS PERSISTANTES
+    # ========================================================
+
+    persistantes = (
+        nb("Difficultés persistantes")
+        + nb("Difficultés importantes")
+    )
+
+    if persistantes > 0:
+
+        phrases.append(
+            "Certaines difficultés nécessitent "
+            "encore un accompagnement régulier."
+        )
+
+    # ========================================================
+    # PAR DÉFAUT
+    # ========================================================
 
     if not phrases:
 
@@ -838,13 +1230,15 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(
-        table_infos
-    )
+    elements.append(table_infos)
 
     elements.append(
         Spacer(1, 8)
     )
+
+    # --------------------------------------------------------
+    # TABLE DES SÉANCES
+    # --------------------------------------------------------
 
     donnees_table = [
         [
@@ -984,13 +1378,15 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(
-        table_seances
-    )
+    elements.append(table_seances)
 
     elements.append(
         Spacer(1, 7)
     )
+
+    # --------------------------------------------------------
+    # TOTAL
+    # --------------------------------------------------------
 
     total_table = Table(
         [
@@ -1064,13 +1460,15 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(
-        total_table
-    )
+    elements.append(total_table)
 
     elements.append(
         Spacer(1, 8)
     )
+
+    # --------------------------------------------------------
+    # BILAN
+    # --------------------------------------------------------
 
     bilan = analyser_observations(
         df_eleve
@@ -1149,13 +1547,15 @@ def generer_facture_pdf(
             ])
         )
 
-        elements.append(
-            table_bilan
-        )
+        elements.append(table_bilan)
 
         elements.append(
             Spacer(1, 6)
         )
+
+    # --------------------------------------------------------
+    # OBSERVATION AUTOMATIQUE
+    # --------------------------------------------------------
 
     observation_automatique = (
         generer_observation_automatique(
@@ -1224,13 +1624,15 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(
-        observation_table
-    )
+    elements.append(observation_table)
 
     elements.append(
         Spacer(1, 8)
     )
+
+    # --------------------------------------------------------
+    # PAIEMENT
+    # --------------------------------------------------------
 
     if statut == "Payée":
 
@@ -1323,9 +1725,7 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(
-        table_paiement
-    )
+    elements.append(table_paiement)
 
     elements.append(
         Spacer(1, 8)
@@ -1338,9 +1738,7 @@ def generer_facture_pdf(
         )
     )
 
-    document.build(
-        elements
-    )
+    document.build(elements)
 
     buffer.seek(0)
 
@@ -1437,58 +1835,12 @@ if menu == "📚 Gestion des séances":
             key="nouvelle_mode"
         )
 
-        # ====================================================
-        # DISCIPLINE
-        # ====================================================
-
-        st.markdown("### 📚 Discipline(s)")
-
-        disciplines_selection = st.multiselect(
-            "Choisir une ou plusieurs disciplines",
+        disciplines = st.multiselect(
+            "Discipline(s)",
             DISCIPLINES,
             default=["Mathématiques"],
             key="nouvelle_disciplines"
         )
-
-        discipline_personnalisee = st.text_input(
-            "➕ Saisir une autre discipline",
-            placeholder=(
-                "Exemple : SVT, Espagnol, "
-                "Algorithmique..."
-            ),
-            key="nouvelle_discipline_personnalisee"
-        )
-
-        disciplines_finales = (
-            disciplines_selection.copy()
-        )
-
-        if discipline_personnalisee.strip():
-
-            nouvelle_discipline = (
-                discipline_personnalisee.strip()
-            )
-
-            if nouvelle_discipline not in disciplines_finales:
-
-                disciplines_finales.append(
-                    nouvelle_discipline
-                )
-
-        # ----------------------------------------------------
-        # APERÇU DISCIPLINES
-        # ----------------------------------------------------
-
-        if disciplines_finales:
-
-            st.caption(
-                "Discipline(s) enregistrée(s) : "
-                + ", ".join(disciplines_finales)
-            )
-
-        # ====================================================
-        # CONTENU
-        # ====================================================
 
         contenu_selection = st.multiselect(
             "Contenu",
@@ -1513,35 +1865,55 @@ if menu == "📚 Gestion des séances":
             contenu += contenu_manuel.strip()
 
         # ====================================================
-        # TRAVAIL
+        # TRAVAIL À FAIRE
         # ====================================================
 
-        travail = st.selectbox(
-            "Travail à faire",
+        st.markdown("### 📚 Travail à faire")
+
+        travail_selection = st.multiselect(
+            "Sélectionner une ou plusieurs propositions",
             TRAVAUX,
-            key="nouvelle_travail"
+            key="nouvelle_travail_selection"
         )
 
-        if travail == "Autre":
+        travail_manuel = st.text_area(
+            "✏️ Travail supplémentaire",
+            placeholder=(
+                "Exemple : exercices 12, 13 et 15 page 48"
+            ),
+            key="nouvelle_travail_manuel"
+        )
 
-            travail = st.text_input(
-                "Préciser",
-                key="nouvelle_travail_autre"
-            )
+        travail = ", ".join(
+            travail_selection
+        )
+
+        if travail_manuel.strip():
+
+            if travail:
+                travail += " — "
+
+            travail += travail_manuel.strip()
 
         # ====================================================
         # OBSERVATIONS
         # ====================================================
 
+        st.markdown("### 📝 Observations")
+
         observations = st.multiselect(
-            "Observations",
+            "Sélectionner une ou plusieurs observations",
             OBSERVATIONS,
             default=["Élève attentif"],
             key="nouvelle_observations"
         )
 
         observation_manuel = st.text_area(
-            "Observations supplémentaires",
+            "✏️ Observation supplémentaire",
+            placeholder=(
+                "Vous pouvez saisir ici une observation "
+                "personnalisée..."
+            ),
             key="nouvelle_observation_manuel"
         )
 
@@ -1588,19 +1960,9 @@ if menu == "📚 Gestion des séances":
 
                 st.stop()
 
-            if not disciplines_finales:
-
-                st.error(
-                    "❌ Sélectionne ou saisis au moins "
-                    "une discipline."
-                )
-
-                st.stop()
-
             nouvelle_seance = {
 
-                "eleve":
-                    eleve,
+                "eleve": eleve,
 
                 "date":
                     date_seance.isoformat(),
@@ -1623,7 +1985,7 @@ if menu == "📚 Gestion des séances":
 
                 "disciplines":
                     ", ".join(
-                        disciplines_finales
+                        disciplines
                     ),
 
                 "contenu":
@@ -1653,9 +2015,7 @@ if menu == "📚 Gestion des séances":
 
                 try:
 
-                    ok, message = (
-                        synchroniser_drive()
-                    )
+                    ok, message = synchroniser_drive()
 
                     if ok:
                         st.success(message)
@@ -1775,64 +2135,15 @@ if menu == "📚 Gestion des séances":
                 )
             )
 
-            # =================================================
-            # DISCIPLINE MODIFICATION
-            # =================================================
-
-            disciplines_existantes = [
-                d.strip()
-                for d in str(
-                    ligne.get("disciplines", "")
-                ).split(",")
-                if d.strip()
-            ]
-
-            disciplines_connues = list(
-                dict.fromkeys(
-                    DISCIPLINES
-                    + disciplines_existantes
-                )
-            )
-
-            disciplines_modifiees = st.multiselect(
+            disciplines = st.text_input(
                 "Discipline(s)",
-                disciplines_connues,
-                default=disciplines_existantes,
-                key=f"disciplines_modifiees_{identifiant}"
-            )
-
-            nouvelle_discipline_modifiee = st.text_input(
-                "➕ Ajouter une autre discipline",
-                placeholder="Exemple : SVT, Espagnol...",
-                key=f"nouvelle_discipline_modifiee_{identifiant}"
-            )
-
-            disciplines_finales_modifiees = (
-                disciplines_modifiees.copy()
-            )
-
-            if nouvelle_discipline_modifiee.strip():
-
-                nouvelle_discipline = (
-                    nouvelle_discipline_modifiee.strip()
-                )
-
-                if nouvelle_discipline not in (
-                    disciplines_finales_modifiees
-                ):
-
-                    disciplines_finales_modifiees.append(
-                        nouvelle_discipline
-                    )
-
-            if disciplines_finales_modifiees:
-
-                st.caption(
-                    "Discipline(s) : "
-                    + ", ".join(
-                        disciplines_finales_modifiees
+                value=str(
+                    ligne.get(
+                        "disciplines",
+                        ""
                     )
                 )
+            )
 
             contenu = st.text_area(
                 "Contenu",
@@ -1890,15 +2201,6 @@ if menu == "📚 Gestion des séances":
 
                     st.stop()
 
-                if not disciplines_finales_modifiees:
-
-                    st.error(
-                        "❌ Sélectionne ou saisis au moins "
-                        "une discipline."
-                    )
-
-                    st.stop()
-
                 modifications = {
 
                     "date":
@@ -1921,9 +2223,7 @@ if menu == "📚 Gestion des séances":
                         mode,
 
                     "disciplines":
-                        ", ".join(
-                            disciplines_finales_modifiees
-                        ),
+                        disciplines,
 
                     "contenu":
                         contenu,
@@ -1956,9 +2256,7 @@ if menu == "📚 Gestion des séances":
 
                     try:
 
-                        ok, message = (
-                            synchroniser_drive()
-                        )
+                        ok, message = synchroniser_drive()
 
                         if ok:
                             st.success(message)
