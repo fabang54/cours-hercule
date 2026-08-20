@@ -508,10 +508,6 @@ def generer_observation_automatique(df_eleve):
 
     phrases = []
 
-    # --------------------------------------------------------
-    # ATTENTION
-    # --------------------------------------------------------
-
     attentif = bilan.get(
         "Élève attentif",
         0
@@ -530,10 +526,6 @@ def generer_observation_automatique(df_eleve):
             "L'attention de l'élève a été "
             "globalement satisfaisante."
         )
-
-    # --------------------------------------------------------
-    # FATIGUE
-    # --------------------------------------------------------
 
     fatigue = bilan.get(
         "Élève fatigué",
@@ -561,10 +553,6 @@ def generer_observation_automatique(df_eleve):
             "ont été observés."
         )
 
-    # --------------------------------------------------------
-    # DISTRACTION
-    # --------------------------------------------------------
-
     distrait = bilan.get(
         "Élève distrait",
         0
@@ -584,10 +572,6 @@ def generer_observation_automatique(df_eleve):
             "ont été observés."
         )
 
-    # --------------------------------------------------------
-    # PARTICIPATION
-    # --------------------------------------------------------
-
     participation = bilan.get(
         "Bonne participation",
         0
@@ -599,10 +583,6 @@ def generer_observation_automatique(df_eleve):
             "La participation est globalement "
             "satisfaisante."
         )
-
-    # --------------------------------------------------------
-    # DIFFICULTÉS
-    # --------------------------------------------------------
 
     difficultes = bilan.get(
         "Difficultés importantes",
@@ -628,10 +608,6 @@ def generer_observation_automatique(df_eleve):
             "des explications et des consolidations."
         )
 
-    # --------------------------------------------------------
-    # PROGRÈS
-    # --------------------------------------------------------
-
     progres = bilan.get(
         "Progrès constatés",
         0
@@ -650,10 +626,6 @@ def generer_observation_automatique(df_eleve):
             "Des progrès commencent à apparaître."
         )
 
-    # --------------------------------------------------------
-    # TRÈS BONNE SÉANCE
-    # --------------------------------------------------------
-
     tres_bonne = bilan.get(
         "Très bonne séance",
         0
@@ -665,10 +637,6 @@ def generer_observation_automatique(df_eleve):
             "L'implication de l'élève est "
             "très encourageante."
         )
-
-    # --------------------------------------------------------
-    # PAR DÉFAUT
-    # --------------------------------------------------------
 
     if not phrases:
 
@@ -754,10 +722,6 @@ def generer_facture_pdf(
 
     elements = []
 
-    # --------------------------------------------------------
-    # TITRE
-    # --------------------------------------------------------
-
     elements.append(
         Paragraph(
             "COURS HERCULE",
@@ -776,10 +740,6 @@ def generer_facture_pdf(
         Spacer(1, 7)
     )
 
-    # --------------------------------------------------------
-    # CALCULS
-    # --------------------------------------------------------
-
     df_eleve = df_eleve.copy()
 
     df_eleve["duree_minutes"] = pd.to_numeric(
@@ -796,10 +756,6 @@ def generer_facture_pdf(
     montant = total_heures * tarif
 
     nombre_seances = len(df_eleve)
-
-    # --------------------------------------------------------
-    # INFORMATIONS
-    # --------------------------------------------------------
 
     date_facture = date.today().strftime(
         "%d/%m/%Y"
@@ -881,17 +837,11 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(
-        table_infos
-    )
+    elements.append(table_infos)
 
     elements.append(
         Spacer(1, 8)
     )
-
-    # --------------------------------------------------------
-    # TABLE DES SÉANCES
-    # --------------------------------------------------------
 
     donnees_table = [
         [
@@ -1031,17 +981,11 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(
-        table_seances
-    )
+    elements.append(table_seances)
 
     elements.append(
         Spacer(1, 7)
     )
-
-    # --------------------------------------------------------
-    # TOTAL
-    # --------------------------------------------------------
 
     total_table = Table(
         [
@@ -1115,17 +1059,11 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(
-        total_table
-    )
+    elements.append(total_table)
 
     elements.append(
         Spacer(1, 8)
     )
-
-    # --------------------------------------------------------
-    # BILAN
-    # --------------------------------------------------------
 
     bilan = analyser_observations(
         df_eleve
@@ -1204,17 +1142,11 @@ def generer_facture_pdf(
             ])
         )
 
-        elements.append(
-            table_bilan
-        )
+        elements.append(table_bilan)
 
         elements.append(
             Spacer(1, 6)
         )
-
-    # --------------------------------------------------------
-    # OBSERVATION AUTOMATIQUE
-    # --------------------------------------------------------
 
     observation_automatique = (
         generer_observation_automatique(
@@ -1283,17 +1215,11 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(
-        observation_table
-    )
+    elements.append(observation_table)
 
     elements.append(
         Spacer(1, 8)
     )
-
-    # --------------------------------------------------------
-    # PAIEMENT
-    # --------------------------------------------------------
 
     if statut == "Payée":
 
@@ -1386,9 +1312,7 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(
-        table_paiement
-    )
+    elements.append(table_paiement)
 
     elements.append(
         Spacer(1, 8)
@@ -1401,9 +1325,7 @@ def generer_facture_pdf(
         )
     )
 
-    document.build(
-        elements
-    )
+    document.build(elements)
 
     buffer.seek(0)
 
@@ -1500,16 +1422,26 @@ if menu == "📚 Gestion des séances":
             key="nouvelle_mode"
         )
 
+        # ====================================================
+        # DISCIPLINE : LISTE + SAISIE LIBRE
+        # ====================================================
+
         disciplines = st.multiselect(
             "Discipline(s)",
             DISCIPLINES,
             default=["Mathématiques"],
+            accept_new_options=True,
             key="nouvelle_disciplines"
         )
+
+        # ====================================================
+        # CONTENU : LISTE + SAISIE LIBRE
+        # ====================================================
 
         contenu_selection = st.multiselect(
             "Contenu",
             CONTENUS,
+            accept_new_options=True,
             key="nouvelle_contenu_selection"
         )
 
@@ -1529,23 +1461,30 @@ if menu == "📚 Gestion des séances":
 
             contenu += contenu_manuel.strip()
 
-        travail = st.selectbox(
+        # ====================================================
+        # TRAVAIL : LISTE + SAISIE LIBRE
+        # ====================================================
+
+        travail_selection = st.multiselect(
             "Travail à faire",
             TRAVAUX,
+            accept_new_options=True,
             key="nouvelle_travail"
         )
 
-        if travail == "Autre":
+        travail = ", ".join(
+            travail_selection
+        )
 
-            travail = st.text_input(
-                "Préciser",
-                key="nouvelle_travail_autre"
-            )
+        # ====================================================
+        # OBSERVATIONS : LISTE + SAISIE LIBRE
+        # ====================================================
 
         observations = st.multiselect(
             "Observations",
             OBSERVATIONS,
             default=["Élève attentif"],
+            accept_new_options=True,
             key="nouvelle_observations"
         )
 
@@ -1566,6 +1505,10 @@ if menu == "📚 Gestion des séances":
             observations_finales += (
                 observation_manuel.strip()
             )
+
+        # ====================================================
+        # ENREGISTREMENT
+        # ====================================================
 
         if st.button(
             "💾 Enregistrer la séance",
@@ -1646,7 +1589,6 @@ if menu == "📚 Gestion des séances":
                     "✅ Séance enregistrée dans Supabase."
                 )
 
-                # Synchronisation Drive facultative
                 try:
 
                     ok, message = synchroniser_drive()
@@ -1671,6 +1613,10 @@ if menu == "📚 Gestion des séances":
                 )
 
                 st.code(str(e))
+
+    # ========================================================
+    # MODIFIER UNE SÉANCE
+    # ========================================================
 
     elif action == "✏️ Modifier une séance":
 
@@ -2127,10 +2073,6 @@ elif menu == "🧾 Facturation":
 
     else:
 
-        # ----------------------------------------------------
-        # ÉLÈVE
-        # ----------------------------------------------------
-
         eleves = sorted(
             df["eleve"]
             .dropna()
@@ -2144,10 +2086,6 @@ elif menu == "🧾 Facturation":
             key="facture_eleve"
         )
 
-        # ----------------------------------------------------
-        # PÉRIODE
-        # ----------------------------------------------------
-
         type_periode = st.selectbox(
             "Période de facturation",
             [
@@ -2157,10 +2095,6 @@ elif menu == "🧾 Facturation":
             index=0,
             key="facture_type_periode"
         )
-
-        # ----------------------------------------------------
-        # MENSUELLE
-        # ----------------------------------------------------
 
         if type_periode == "Mensuelle":
 
@@ -2225,10 +2159,6 @@ elif menu == "🧾 Facturation":
                 pd.Timedelta(days=1)
             )
 
-        # ----------------------------------------------------
-        # PERSONNALISÉE
-        # ----------------------------------------------------
-
         else:
 
             col1, col2 = st.columns(2)
@@ -2272,10 +2202,6 @@ elif menu == "🧾 Facturation":
             f"📅 Période facturée : {periode}"
         )
 
-        # ----------------------------------------------------
-        # TARIF
-        # ----------------------------------------------------
-
         tarif = st.number_input(
             "Tarif horaire (€)",
             min_value=0.0,
@@ -2283,10 +2209,6 @@ elif menu == "🧾 Facturation":
             step=1.0,
             key="facture_tarif"
         )
-
-        # ----------------------------------------------------
-        # STATUT
-        # ----------------------------------------------------
 
         statut = st.selectbox(
             "Statut du paiement",
@@ -2306,10 +2228,6 @@ elif menu == "🧾 Facturation":
                 value=date.today(),
                 key="facture_date_paiement"
             )
-
-        # ----------------------------------------------------
-        # FILTRAGE
-        # ----------------------------------------------------
 
         df_eleve = df[
             df["eleve"] == eleve
@@ -2331,10 +2249,6 @@ elif menu == "🧾 Facturation":
                 <= date_fin_inclusive
             )
         ].copy()
-
-        # ----------------------------------------------------
-        # AUCUNE SÉANCE
-        # ----------------------------------------------------
 
         if df_eleve.empty:
 
@@ -2366,10 +2280,6 @@ elif menu == "🧾 Facturation":
                 df_eleve
             )
 
-            # ------------------------------------------------
-            # INDICATEURS
-            # ------------------------------------------------
-
             col1, col2, col3 = st.columns(3)
 
             with col1:
@@ -2392,10 +2302,6 @@ elif menu == "🧾 Facturation":
                     "Total",
                     f"{montant:.2f} €"
                 )
-
-            # ------------------------------------------------
-            # BILAN DES SÉANCES
-            # ------------------------------------------------
 
             st.subheader(
                 "📋 Bilan des séances"
@@ -2445,10 +2351,6 @@ elif menu == "🧾 Facturation":
                 hide_index=True
             )
 
-            # ------------------------------------------------
-            # RÉSUMÉ FINANCIER
-            # ------------------------------------------------
-
             st.subheader(
                 "💶 Résumé financier"
             )
@@ -2479,10 +2381,6 @@ elif menu == "🧾 Facturation":
             st.caption(
                 f"Tarif appliqué : {tarif:.2f} € / h"
             )
-
-            # ------------------------------------------------
-            # BILAN OBSERVATIONS
-            # ------------------------------------------------
 
             st.subheader(
                 "📊 Bilan des observations"
@@ -2516,10 +2414,6 @@ elif menu == "🧾 Facturation":
                     "pour cette période."
                 )
 
-            # ------------------------------------------------
-            # OBSERVATION AUTOMATIQUE
-            # ------------------------------------------------
-
             st.subheader(
                 "📝 Observation automatique"
             )
@@ -2534,10 +2428,6 @@ elif menu == "🧾 Facturation":
                 observation_auto
             )
 
-            # ------------------------------------------------
-            # NUMÉRO FACTURE
-            # ------------------------------------------------
-
             numero_facture = st.text_input(
                 "Numéro de facture",
                 value=(
@@ -2548,10 +2438,6 @@ elif menu == "🧾 Facturation":
                 ),
                 key="numero_facture"
             )
-
-            # ------------------------------------------------
-            # GÉNÉRATION PDF
-            # ------------------------------------------------
 
             if st.button(
                 "🧾 Générer la facture PDF",
@@ -2598,10 +2484,6 @@ elif menu == "🧾 Facturation":
                         str(e)
                     )
 
-            # ------------------------------------------------
-            # APERÇU / TÉLÉCHARGEMENT
-            # ------------------------------------------------
-
             if "facture_pdf" in st.session_state:
 
                 st.subheader(
@@ -2628,7 +2510,7 @@ elif menu == "🧾 Facturation":
 
 
 # ============================================================
-# GESTION DES ÉLÈVES — DERNIER ONGLET
+# GESTION DES ÉLÈVES
 # ============================================================
 
 elif menu == "👨‍🎓 Élèves":
