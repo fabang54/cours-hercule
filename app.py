@@ -514,7 +514,7 @@ def synchroniser_drive():
 
 
 # ============================================================
-# SAUVEGARDE FACTURE PDF GOOGLE DRIVE
+# FACTURE PDF GOOGLE DRIVE
 # ============================================================
 
 def sauvegarder_facture_pdf_dans_drive(
@@ -1142,6 +1142,47 @@ def recuperer_factures():
 
 
 # ============================================================
+# NUMÉRO DE FACTURE AUTOMATIQUE
+# ============================================================
+
+def prochain_numero_facture():
+
+    annee = date.today().year
+
+    factures = recuperer_factures()
+
+    prochain = 1
+
+    if not factures.empty and "numero_facture" in factures.columns:
+
+        for numero in factures["numero_facture"].dropna():
+
+            numero = str(numero)
+
+            prefixe = f"CH-{annee}-"
+
+            if numero.startswith(prefixe):
+
+                try:
+
+                    partie = numero.replace(
+                        prefixe,
+                        "",
+                        1
+                    )
+
+                    valeur = int(partie)
+
+                    if valeur >= prochain:
+                        prochain = valeur + 1
+
+                except ValueError:
+                    pass
+
+    return f"CH-{annee}-{prochain:04d}"
+
+
+# ============================================================
 # TITRE
 # ============================================================
 
@@ -1190,10 +1231,6 @@ if menu == "📚 Gestion des séances":
             "Aucun élève enregistré."
         )
 
-    # ========================================================
-    # NOUVELLE SÉANCE
-    # ========================================================
-
     elif action == "➕ Nouvelle séance":
 
         st.subheader("➕ Nouvelle séance")
@@ -1235,7 +1272,6 @@ if menu == "📚 Gestion des séances":
         )
 
         if discipline_autre.strip():
-
             disciplines.append(
                 discipline_autre.strip()
             )
@@ -1370,10 +1406,6 @@ if menu == "📚 Gestion des séances":
                 )
 
                 st.code(str(e))
-
-    # ========================================================
-    # MODIFIER UNE SÉANCE
-    # ========================================================
 
     elif action == "✏️ Modifier une séance":
 
@@ -1550,10 +1582,6 @@ if menu == "📚 Gestion des séances":
 
                     st.code(str(e))
 
-    # ========================================================
-    # SUPPRIMER UNE SÉANCE
-    # ========================================================
-
     else:
 
         st.subheader("🗑️ Supprimer une séance")
@@ -1653,11 +1681,6 @@ if menu == "📚 Gestion des séances":
 **Observations :**
 {ligne.get('observations', '')}
 """
-            )
-
-            st.warning(
-                "⚠️ Cette action supprimera définitivement "
-                "la séance."
             )
 
             confirmation = st.checkbox(
@@ -1944,10 +1967,6 @@ elif menu == "🧾 Facturation":
                     or 0
                 )
 
-            # ------------------------------------------------
-            # NIVEAU
-            # ------------------------------------------------
-
             if niveau_existant in NIVEAUX:
 
                 niveau_index = NIVEAUX.index(
@@ -1972,8 +1991,7 @@ elif menu == "🧾 Facturation":
                         niveau_existant
                         if niveau_existant not in NIVEAUX
                         else ""
-                    ),
-                    placeholder="Ex. 3e prépa-métiers"
+                    )
                 )
 
             else:
@@ -2260,22 +2278,118 @@ elif menu == "🧾 Facturation":
                 )
 
             # ------------------------------------------------
-            # NUMÉRO
+            # NUMÉRO DE FACTURE
             # ------------------------------------------------
 
-            numero_facture = st.text_input(
+            numero_facture = prochain_numero_facture()
+
+            st.text_input(
                 "Numéro de facture",
-                value=(
-                    f"CH-"
-                    f"{date_debut.strftime('%Y%m%d')}-"
-                    f"{date_fin_inclusive.strftime('%Y%m%d')}-"
-                    f"{eleve.upper().replace(' ', '-')}"
-                )
+                value=numero_facture,
+                disabled=True
             )
+
+            st.caption(
+                "Le numéro est automatique et ne contient "
+                "pas le nom de l'élève."
+            )
+
+            # ------------------------------------------------
+            # APERÇU FACTURE
+            # ------------------------------------------------
+
+            st.divider()
+
+            st.subheader(
+                "👁️ Aperçu de la facture"
+            )
+
+            if st.button(
+                "👁️ Générer l'aperçu",
+                type="secondary"
+            ):
+
+                try:
+
+                    pdf_apercu, montant_apercu = (
+                        generer_facture_pdf(
+                            df_eleve,
+                            eleve,
+                            niveau,
+                            tarif_horaire,
+                            forfait_utilise,
+                            remise,
+                            numero_facture,
+                            periode,
+                            statut,
+                            date_paiement,
+                            type_tarification
+                        )
+                    )
+
+                    st.session_state[
+                        "facture_apercu_pdf"
+                    ] = pdf_apercu
+
+                    st.session_state[
+                        "facture_apercu_nom"
+                    ] = (
+                        f"Facture_{numero_facture}.pdf"
+                    )
+
+                except Exception as e:
+
+                    st.error(
+                        "❌ Impossible de générer l'aperçu."
+                    )
+
+                    st.code(str(e))
+
+            if "facture_apercu_pdf" in st.session_state:
+
+                st.success(
+                    "✅ Aperçu généré."
+                )
+
+                st.download_button(
+                    "📥 Télécharger l'aperçu PDF",
+                    data=st.session_state[
+                        "facture_apercu_pdf"
+                    ],
+                    file_name=st.session_state[
+                        "facture_apercu_nom"
+                    ],
+                    mime="application/pdf"
+                )
+
+                # Affichage navigateur du PDF
+                import base64
+
+                pdf_base64 = base64.b64encode(
+                    st.session_state[
+                        "facture_apercu_pdf"
+                    ]
+                ).decode("utf-8")
+
+                pdf_display = f"""
+                <iframe
+                    src="data:application/pdf;base64,{pdf_base64}"
+                    width="100%"
+                    height="800"
+                    type="application/pdf">
+                </iframe>
+                """
+
+                st.markdown(
+                    pdf_display,
+                    unsafe_allow_html=True
+                )
 
             # ------------------------------------------------
             # GOOGLE DRIVE
             # ------------------------------------------------
+
+            st.divider()
 
             enregistrer_drive = st.checkbox(
                 "☁️ Enregistrer aussi la facture dans Google Drive",
@@ -2293,6 +2407,7 @@ elif menu == "🧾 Facturation":
 
                 try:
 
+                    # Nouveau PDF définitif
                     pdf, montant_final = (
                         generer_facture_pdf(
                             df_eleve,
@@ -2309,6 +2424,7 @@ elif menu == "🧾 Facturation":
                         )
                     )
 
+                    # Enregistrement Supabase
                     enregistrer_facture(
                         numero_facture,
                         eleve,
@@ -2325,9 +2441,7 @@ elif menu == "🧾 Facturation":
 
                     nom_facture = (
                         f"Facture_"
-                        f"{eleve.replace(' ', '_')}_"
-                        f"{date_debut.strftime('%Y%m%d')}_"
-                        f"{date_fin_inclusive.strftime('%Y%m%d')}.pdf"
+                        f"{numero_facture}.pdf"
                     )
 
                     st.session_state[
@@ -2340,10 +2454,6 @@ elif menu == "🧾 Facturation":
 
                     st.success(
                         "✅ Facture enregistrée dans Supabase."
-                    )
-
-                    st.success(
-                        "📄 Facture PDF générée."
                     )
 
                     # ----------------------------------------
@@ -2376,6 +2486,13 @@ elif menu == "🧾 Facturation":
 
                             st.code(str(e))
 
+                    st.download_button(
+                        "📥 Télécharger la facture PDF",
+                        data=pdf,
+                        file_name=nom_facture,
+                        mime="application/pdf"
+                    )
+
                 except Exception as e:
 
                     st.error(
@@ -2384,15 +2501,6 @@ elif menu == "🧾 Facturation":
                     )
 
                     st.code(str(e))
-
-            if "facture_pdf" in st.session_state:
-
-                st.download_button(
-                    "📥 Télécharger la facture PDF",
-                    data=st.session_state["facture_pdf"],
-                    file_name=st.session_state["facture_nom"],
-                    mime="application/pdf"
-                )
 
     # ========================================================
     # FACTURES
@@ -2414,7 +2522,30 @@ elif menu == "🧾 Facturation":
 
         else:
 
+            # --------------------------------------------
+            # RECHERCHE PAR NUMÉRO
+            # --------------------------------------------
+
+            recherche = st.text_input(
+                "🔎 Rechercher une facture par numéro",
+                placeholder="Ex. CH-2026-0001"
+            )
+
             affichage = factures.copy()
+
+            if recherche.strip():
+
+                affichage = affichage[
+                    affichage[
+                        "numero_facture"
+                    ]
+                    .astype(str)
+                    .str.contains(
+                        recherche.strip(),
+                        case=False,
+                        na=False
+                    )
+                ]
 
             if "date_facture" in affichage.columns:
 
@@ -2438,58 +2569,60 @@ elif menu == "🧾 Facturation":
                 "🗑️ Supprimer une facture"
             )
 
-            choix = st.selectbox(
-                "Facture",
-                factures["id"].tolist(),
-                format_func=lambda x:
-                str(
-                    factures.loc[
-                        factures["id"] == x,
-                        "numero_facture"
-                    ].iloc[0]
-                )
-            )
+            if not factures.empty:
 
-            confirmation = st.checkbox(
-                "Je confirme la suppression définitive."
-            )
-
-            if st.button(
-                "🗑️ Supprimer la facture",
-                type="primary"
-            ):
-
-                if not confirmation:
-
-                    st.error(
-                        "Coche la confirmation."
+                choix = st.selectbox(
+                    "Facture",
+                    factures["id"].tolist(),
+                    format_func=lambda x:
+                    str(
+                        factures.loc[
+                            factures["id"] == x,
+                            "numero_facture"
+                        ].iloc[0]
                     )
+                )
 
-                else:
+                confirmation = st.checkbox(
+                    "Je confirme la suppression définitive."
+                )
 
-                    try:
+                if st.button(
+                    "🗑️ Supprimer la facture",
+                    type="primary"
+                ):
 
-                        (
-                            supabase
-                            .table("factures")
-                            .delete()
-                            .eq("id", choix)
-                            .execute()
-                        )
-
-                        st.success(
-                            "✅ Facture supprimée."
-                        )
-
-                        st.rerun()
-
-                    except Exception as e:
+                    if not confirmation:
 
                         st.error(
-                            "Erreur suppression facture."
+                            "Coche la confirmation."
                         )
 
-                        st.code(str(e))
+                    else:
+
+                        try:
+
+                            (
+                                supabase
+                                .table("factures")
+                                .delete()
+                                .eq("id", choix)
+                                .execute()
+                            )
+
+                            st.success(
+                                "✅ Facture supprimée."
+                            )
+
+                            st.rerun()
+
+                        except Exception as e:
+
+                            st.error(
+                                "Erreur suppression facture."
+                            )
+
+                            st.code(str(e))
 
     # ========================================================
     # IMPAYÉES
