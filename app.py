@@ -104,6 +104,24 @@ DISCIPLINES = [
     "Autre"
 ]
 
+NIVEAUX = [
+    "CP",
+    "CE1",
+    "CE2",
+    "CM1",
+    "CM2",
+    "6e",
+    "5e",
+    "4e",
+    "3e",
+    "2nde",
+    "1re",
+    "Terminale",
+    "BTS",
+    "Supérieur",
+    "Autre"
+]
+
 CONTENUS = [
     "Nombres relatifs",
     "Fractions",
@@ -351,6 +369,45 @@ def obtenir_service_drive():
     )
 
 
+def obtenir_dossier_cours_hercule(service):
+
+    resultat = (
+        service.files()
+        .list(
+            q=(
+                "name = 'Cours Hercule' "
+                "and mimeType = "
+                "'application/vnd.google-apps.folder' "
+                "and trashed = false"
+            ),
+            spaces="drive",
+            fields="files(id,name)",
+            pageSize=10
+        )
+        .execute()
+    )
+
+    dossiers = resultat.get("files", [])
+
+    if dossiers:
+        return dossiers[0]["id"]
+
+    dossier = (
+        service.files()
+        .create(
+            body={
+                "name": "Cours Hercule",
+                "mimeType":
+                "application/vnd.google-apps.folder"
+            },
+            fields="id,name"
+        )
+        .execute()
+    )
+
+    return dossier["id"]
+
+
 def dataframe_csv_bytes(df):
 
     buffer = io.StringIO()
@@ -372,44 +429,9 @@ def sauvegarder_dans_drive(df):
 
     service = obtenir_service_drive()
 
-    resultat = (
-        service.files()
-        .list(
-            q=(
-                "name = 'Cours Hercule' "
-                "and mimeType = "
-                "'application/vnd.google-apps.folder' "
-                "and trashed = false"
-            ),
-            spaces="drive",
-            fields="files(id,name)",
-            pageSize=10
-        )
-        .execute()
+    dossier_id = obtenir_dossier_cours_hercule(
+        service
     )
-
-    dossiers = resultat.get("files", [])
-
-    if dossiers:
-
-        dossier_id = dossiers[0]["id"]
-
-    else:
-
-        dossier = (
-            service.files()
-            .create(
-                body={
-                    "name": "Cours Hercule",
-                    "mimeType":
-                    "application/vnd.google-apps.folder"
-                },
-                fields="id,name"
-            )
-            .execute()
-        )
-
-        dossier_id = dossier["id"]
 
     contenu = dataframe_csv_bytes(df)
 
@@ -492,6 +514,76 @@ def synchroniser_drive():
 
 
 # ============================================================
+# SAUVEGARDE FACTURE PDF GOOGLE DRIVE
+# ============================================================
+
+def sauvegarder_facture_pdf_dans_drive(
+    pdf_bytes,
+    nom_fichier
+):
+
+    from googleapiclient.http import MediaIoBaseUpload
+
+    service = obtenir_service_drive()
+
+    dossier_id = obtenir_dossier_cours_hercule(
+        service
+    )
+
+    media = MediaIoBaseUpload(
+        BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        resumable=False
+    )
+
+    resultat = (
+        service.files()
+        .list(
+            q=(
+                f"'{dossier_id}' in parents "
+                f"and name = '{nom_fichier}' "
+                "and trashed = false"
+            ),
+            spaces="drive",
+            fields="files(id,name)",
+            pageSize=10
+        )
+        .execute()
+    )
+
+    fichiers = resultat.get("files", [])
+
+    if fichiers:
+
+        (
+            service.files()
+            .update(
+                fileId=fichiers[0]["id"],
+                media_body=media
+            )
+            .execute()
+        )
+
+        return "mise à jour"
+
+    (
+        service.files()
+        .create(
+            body={
+                "name": nom_fichier,
+                "parents": [dossier_id],
+                "mimeType": "application/pdf"
+            },
+            media_body=media,
+            fields="id,name"
+        )
+        .execute()
+    )
+
+    return "créée"
+
+
+# ============================================================
 # OBSERVATIONS
 # ============================================================
 
@@ -549,49 +641,60 @@ def generer_observation_automatique(df_eleve):
     progres = bilan.get("Progrès constatés", 0)
 
     if attentif >= nombre_seances * 0.75:
+
         phrases.append(
             "L'élève s'est montré attentif "
             "sur la majorité des séances."
         )
+
     elif attentif >= nombre_seances * 0.5:
+
         phrases.append(
             "L'attention de l'élève est globalement satisfaisante."
         )
 
     if fatigue >= nombre_seances * 0.5:
+
         phrases.append(
             "Une certaine fatigue a été observée."
         )
 
     if distrait >= nombre_seances * 0.5:
+
         phrases.append(
             "Des difficultés de concentration "
             "ont été observées régulièrement."
         )
 
     if participation >= nombre_seances * 0.5:
+
         phrases.append(
             "La participation est globalement satisfaisante."
         )
 
     if difficultes > 0:
+
         phrases.append(
             "Certaines difficultés nécessitent "
             "encore un accompagnement."
         )
+
     elif comprehension > 0:
+
         phrases.append(
             "Certaines notions nécessitent "
             "encore des consolidations."
         )
 
     if progres >= nombre_seances * 0.5:
+
         phrases.append(
             "Des progrès sont constatés "
             "au cours de la période."
         )
 
     if not phrases:
+
         return (
             "La période de travail s'est déroulée "
             "dans de bonnes conditions. "
@@ -656,13 +759,6 @@ def generer_facture_pdf(
         "Droite",
         parent=normal,
         alignment=TA_RIGHT
-    )
-
-    petit = ParagraphStyle(
-        "Petit",
-        parent=normal,
-        fontSize=7.5,
-        leading=9
     )
 
     elements = []
@@ -763,13 +859,13 @@ def generer_facture_pdf(
 
     table_infos.setStyle(
         TableStyle([
-            ("GRID", (0,0), (-1,-1), 0.4, colors.grey),
-            ("BACKGROUND", (0,0), (0,-1), colors.whitesmoke),
-            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-            ("LEFTPADDING", (0,0), (-1,-1), 5),
-            ("RIGHTPADDING", (0,0), (-1,-1), 5),
-            ("TOPPADDING", (0,0), (-1,-1), 4),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 4)
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+            ("BACKGROUND", (0, 0), (0, -1), colors.whitesmoke),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4)
         ])
     )
 
@@ -796,11 +892,16 @@ def generer_facture_pdf(
         )
 
         try:
+
             date_ligne = pd.to_datetime(
                 ligne.get("date")
             ).strftime("%d/%m/%Y")
-        except:
-            date_ligne = str(ligne.get("date", ""))
+
+        except Exception:
+
+            date_ligne = str(
+                ligne.get("date", "")
+            )
 
         debut = str(
             ligne.get("heure_debut", "")
@@ -826,16 +927,16 @@ def generer_facture_pdf(
 
     table_seances.setStyle(
         TableStyle([
-            ("GRID", (0,0), (-1,-1), 0.4, colors.grey),
-            ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
-            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
-            ("FONTSIZE", (0,0), (-1,-1), 7),
-            ("ALIGN", (4,1), (4,-1), "RIGHT"),
-            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-            ("LEFTPADDING", (0,0), (-1,-1), 3),
-            ("RIGHTPADDING", (0,0), (-1,-1), 3),
-            ("TOPPADDING", (0,0), (-1,-1), 2),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 2)
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 7),
+            ("ALIGN", (4, 1), (4, -1), "RIGHT"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2)
         ])
     )
 
@@ -871,11 +972,11 @@ def generer_facture_pdf(
 
     total_table.setStyle(
         TableStyle([
-            ("GRID", (0,0), (-1,-1), 0.4, colors.grey),
-            ("BACKGROUND", (0,2), (-1,2), colors.whitesmoke),
-            ("ALIGN", (1,0), (1,-1), "RIGHT"),
-            ("TOPPADDING", (0,0), (-1,-1), 4),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 4)
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+            ("BACKGROUND", (0, 2), (-1, 2), colors.whitesmoke),
+            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4)
         ])
     )
 
@@ -900,12 +1001,12 @@ def generer_facture_pdf(
 
     obs_table.setStyle(
         TableStyle([
-            ("BOX", (0,0), (-1,-1), 0.4, colors.grey),
-            ("BACKGROUND", (0,0), (-1,-1), colors.whitesmoke),
-            ("LEFTPADDING", (0,0), (-1,-1), 6),
-            ("RIGHTPADDING", (0,0), (-1,-1), 6),
-            ("TOPPADDING", (0,0), (-1,-1), 5),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 5)
+            ("BOX", (0, 0), (-1, -1), 0.4, colors.grey),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5)
         ])
     )
 
@@ -927,7 +1028,10 @@ def generer_facture_pdf(
     paiement = [
         [
             Paragraph("<b>Statut</b>", normal),
-            Paragraph(f"<b>{statut_pdf}</b>", normal)
+            Paragraph(
+                f"<b>{statut_pdf}</b>",
+                normal
+            )
         ],
         [
             Paragraph("<b>Date de paiement</b>", normal),
@@ -942,10 +1046,10 @@ def generer_facture_pdf(
 
     table_paiement.setStyle(
         TableStyle([
-            ("GRID", (0,0), (-1,-1), 0.4, colors.grey),
-            ("BACKGROUND", (0,0), (0,-1), colors.whitesmoke),
-            ("TOPPADDING", (0,0), (-1,-1), 4),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 4)
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+            ("BACKGROUND", (0, 0), (0, -1), colors.whitesmoke),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4)
         ])
     )
 
@@ -967,7 +1071,7 @@ def generer_facture_pdf(
 
 
 # ============================================================
-# ENREGISTRER FACTURE SUPABASE
+# FACTURES SUPABASE
 # ============================================================
 
 def enregistrer_facture(
@@ -1072,7 +1176,8 @@ if menu == "📚 Gestion des séances":
         "Action",
         [
             "➕ Nouvelle séance",
-            "✏️ Modifier une séance"
+            "✏️ Modifier une séance",
+            "🗑️ Supprimer une séance"
         ],
         horizontal=True
     )
@@ -1084,6 +1189,10 @@ if menu == "📚 Gestion des séances":
         st.warning(
             "Aucun élève enregistré."
         )
+
+    # ========================================================
+    # NOUVELLE SÉANCE
+    # ========================================================
 
     elif action == "➕ Nouvelle séance":
 
@@ -1247,15 +1356,10 @@ if menu == "📚 Gestion des séances":
                     "✅ Séance enregistrée."
                 )
 
-                try:
+                ok, message = synchroniser_drive()
 
-                    ok, message = synchroniser_drive()
-
-                    if ok:
-                        st.success(message)
-
-                except Exception:
-                    pass
+                if ok:
+                    st.success(message)
 
                 st.rerun()
 
@@ -1267,7 +1371,11 @@ if menu == "📚 Gestion des séances":
 
                 st.code(str(e))
 
-    else:
+    # ========================================================
+    # MODIFIER UNE SÉANCE
+    # ========================================================
+
+    elif action == "✏️ Modifier une séance":
 
         st.subheader("✏️ Modifier une séance")
 
@@ -1427,6 +1535,11 @@ if menu == "📚 Gestion des séances":
                         "✅ Séance modifiée."
                     )
 
+                    ok, message = synchroniser_drive()
+
+                    if ok:
+                        st.success(message)
+
                     st.rerun()
 
                 except Exception as e:
@@ -1436,6 +1549,162 @@ if menu == "📚 Gestion des séances":
                     )
 
                     st.code(str(e))
+
+    # ========================================================
+    # SUPPRIMER UNE SÉANCE
+    # ========================================================
+
+    else:
+
+        st.subheader("🗑️ Supprimer une séance")
+
+        df = recuperer_seances()
+
+        if df.empty:
+
+            st.info(
+                "Aucune séance enregistrée."
+            )
+
+        else:
+
+            eleves_seances = sorted(
+                df["eleve"]
+                .dropna()
+                .unique()
+                .tolist()
+            )
+
+            eleve = st.selectbox(
+                "Élève",
+                eleves_seances
+            )
+
+            df_eleve = df[
+                df["eleve"] == eleve
+            ].copy()
+
+            choix_seances = []
+
+            for _, ligne in df_eleve.iterrows():
+
+                date_affichage = str(
+                    ligne.get("date", "")
+                )
+
+                heure_debut = str(
+                    ligne.get("heure_debut", "")
+                )[:5]
+
+                heure_fin = str(
+                    ligne.get("heure_fin", "")
+                )[:5]
+
+                contenu = str(
+                    ligne.get("contenu", "")
+                )
+
+                choix_seances.append(
+                    (
+                        ligne["id"],
+                        f"{date_affichage} | "
+                        f"{heure_debut} → {heure_fin} | "
+                        f"{contenu}"
+                    )
+                )
+
+            seance_choisie = st.selectbox(
+                "Séance à supprimer",
+                choix_seances,
+                format_func=lambda x: x[1]
+            )
+
+            id_seance = seance_choisie[0]
+
+            ligne = df_eleve[
+                df_eleve["id"] == id_seance
+            ].iloc[0]
+
+            st.info(
+                f"""
+**Élève :** {ligne.get('eleve', '')}
+
+**Date :** {ligne.get('date', '')}
+
+**Horaire :**
+{str(ligne.get('heure_debut', ''))[:5]}
+→
+{str(ligne.get('heure_fin', ''))[:5]}
+
+**Durée :**
+{ligne.get('duree_minutes', 0)} minutes
+
+**Mode :** {ligne.get('mode', '')}
+
+**Discipline :**
+{ligne.get('disciplines', '')}
+
+**Contenu :**
+{ligne.get('contenu', '')}
+
+**Travail :**
+{ligne.get('travail', '')}
+
+**Observations :**
+{ligne.get('observations', '')}
+"""
+            )
+
+            st.warning(
+                "⚠️ Cette action supprimera définitivement "
+                "la séance."
+            )
+
+            confirmation = st.checkbox(
+                "Je confirme vouloir supprimer définitivement cette séance."
+            )
+
+            if st.button(
+                "🗑️ Supprimer définitivement",
+                type="primary"
+            ):
+
+                if not confirmation:
+
+                    st.error(
+                        "Veuillez confirmer la suppression."
+                    )
+
+                else:
+
+                    try:
+
+                        (
+                            supabase
+                            .table("seances")
+                            .delete()
+                            .eq("id", id_seance)
+                            .execute()
+                        )
+
+                        st.success(
+                            "✅ Séance supprimée définitivement."
+                        )
+
+                        ok, message = synchroniser_drive()
+
+                        if ok:
+                            st.success(message)
+
+                        st.rerun()
+
+                    except Exception as e:
+
+                        st.error(
+                            "❌ Erreur lors de la suppression."
+                        )
+
+                        st.code(str(e))
 
 
 # ============================================================
@@ -1548,12 +1817,14 @@ elif menu == "📊 Bilan":
         col1, col2 = st.columns(2)
 
         with col1:
+
             st.metric(
                 "Nombre de séances",
                 len(df_eleve)
             )
 
         with col2:
+
             st.metric(
                 "Heures",
                 f"{total_minutes / 60:.2f} h"
@@ -1633,20 +1904,23 @@ elif menu == "🧾 Facturation":
                 recuperer_eleve_par_nom(eleve)
             )
 
-            niveau = ""
+            niveau_existant = ""
 
-            type_tarification = "Tarif horaire"
+            type_tarification_eleve = "Tarif horaire"
             tarif_horaire = 0.0
             forfait_mensuel = 0.0
 
             if informations_eleve is not None:
 
-                niveau = informations_eleve.get(
-                    "classe_actuelle",
-                    ""
+                niveau_existant = (
+                    informations_eleve.get(
+                        "classe_actuelle",
+                        ""
+                    )
+                    or ""
                 )
 
-                type_tarification = (
+                type_tarification_eleve = (
                     informations_eleve.get(
                         "type_tarification",
                         "Tarif horaire"
@@ -1670,9 +1944,41 @@ elif menu == "🧾 Facturation":
                     or 0
                 )
 
-            st.info(
-                f"🎓 Niveau : {niveau or 'Non renseigné'}"
+            # ------------------------------------------------
+            # NIVEAU
+            # ------------------------------------------------
+
+            if niveau_existant in NIVEAUX:
+
+                niveau_index = NIVEAUX.index(
+                    niveau_existant
+                )
+
+            else:
+
+                niveau_index = 0
+
+            niveau_choix = st.selectbox(
+                "Niveau / classe",
+                NIVEAUX,
+                index=niveau_index
             )
+
+            if niveau_choix == "Autre":
+
+                niveau = st.text_input(
+                    "✏️ Saisir le niveau / la classe",
+                    value=(
+                        niveau_existant
+                        if niveau_existant not in NIVEAUX
+                        else ""
+                    ),
+                    placeholder="Ex. 3e prépa-métiers"
+                )
+
+            else:
+
+                niveau = niveau_choix
 
             # ------------------------------------------------
             # PÉRIODE
@@ -1854,7 +2160,8 @@ elif menu == "🧾 Facturation":
                 ],
                 index=(
                     1
-                    if type_tarification == "Forfait mensuel"
+                    if type_tarification_eleve
+                    == "Forfait mensuel"
                     else 0
                 )
             )
@@ -1967,6 +2274,15 @@ elif menu == "🧾 Facturation":
             )
 
             # ------------------------------------------------
+            # GOOGLE DRIVE
+            # ------------------------------------------------
+
+            enregistrer_drive = st.checkbox(
+                "☁️ Enregistrer aussi la facture dans Google Drive",
+                value=False
+            )
+
+            # ------------------------------------------------
             # GÉNÉRER ET ENREGISTRER
             # ------------------------------------------------
 
@@ -2007,18 +2323,20 @@ elif menu == "🧾 Facturation":
                         date_paiement
                     )
 
+                    nom_facture = (
+                        f"Facture_"
+                        f"{eleve.replace(' ', '_')}_"
+                        f"{date_debut.strftime('%Y%m%d')}_"
+                        f"{date_fin_inclusive.strftime('%Y%m%d')}.pdf"
+                    )
+
                     st.session_state[
                         "facture_pdf"
                     ] = pdf
 
                     st.session_state[
                         "facture_nom"
-                    ] = (
-                        f"Facture_"
-                        f"{eleve.replace(' ', '_')}_"
-                        f"{date_debut.strftime('%Y%m%d')}_"
-                        f"{date_fin_inclusive.strftime('%Y%m%d')}.pdf"
-                    )
+                    ] = nom_facture
 
                     st.success(
                         "✅ Facture enregistrée dans Supabase."
@@ -2027,6 +2345,36 @@ elif menu == "🧾 Facturation":
                     st.success(
                         "📄 Facture PDF générée."
                     )
+
+                    # ----------------------------------------
+                    # GOOGLE DRIVE
+                    # ----------------------------------------
+
+                    if enregistrer_drive:
+
+                        try:
+
+                            resultat_drive = (
+                                sauvegarder_facture_pdf_dans_drive(
+                                    pdf,
+                                    nom_facture
+                                )
+                            )
+
+                            st.success(
+                                f"☁️ Facture {resultat_drive} "
+                                "dans Google Drive."
+                            )
+
+                        except Exception as e:
+
+                            st.error(
+                                "⚠️ La facture a été enregistrée "
+                                "dans Supabase mais pas dans "
+                                "Google Drive."
+                            )
+
+                            st.code(str(e))
 
                 except Exception as e:
 
@@ -2052,7 +2400,9 @@ elif menu == "🧾 Facturation":
 
     elif sous_menu == "📋 Factures":
 
-        st.subheader("📋 Factures enregistrées")
+        st.subheader(
+            "📋 Factures enregistrées"
+        )
 
         factures = recuperer_factures()
 
@@ -2066,10 +2416,15 @@ elif menu == "🧾 Facturation":
 
             affichage = factures.copy()
 
-            affichage["date_facture"] = pd.to_datetime(
-                affichage["date_facture"],
-                errors="coerce"
-            ).dt.strftime("%d/%m/%Y")
+            if "date_facture" in affichage.columns:
+
+                affichage["date_facture"] = (
+                    pd.to_datetime(
+                        affichage["date_facture"],
+                        errors="coerce"
+                    )
+                    .dt.strftime("%d/%m/%Y")
+                )
 
             st.dataframe(
                 affichage,
@@ -2285,10 +2640,21 @@ elif menu == "👨‍🎓 Élèves":
             "Nom"
         )
 
-        classe = st.text_input(
+        niveau_choix = st.selectbox(
             "Niveau / Classe",
-            placeholder="Ex. 4e, 2nde, Terminale..."
+            NIVEAUX
         )
+
+        if niveau_choix == "Autre":
+
+            classe = st.text_input(
+                "✏️ Saisir le niveau / la classe",
+                placeholder="Ex. 3e prépa-métiers"
+            )
+
+        else:
+
+            classe = niveau_choix
 
         type_tarification = st.selectbox(
             "Type de tarification",
@@ -2324,7 +2690,10 @@ elif menu == "👨‍🎓 Élèves":
 
         contrat_autre = st.text_area(
             "Précisions sur le contrat",
-            placeholder="Modalités particulières convenues avec la famille..."
+            placeholder=(
+                "Modalités particulières convenues "
+                "avec la famille..."
+            )
         )
 
         if contrat == "Autre" and contrat_autre.strip():
@@ -2354,13 +2723,19 @@ elif menu == "👨‍🎓 Élèves":
                     "Le prénom est obligatoire."
                 )
 
+            elif not classe.strip():
+
+                st.error(
+                    "Le niveau / la classe est obligatoire."
+                )
+
             else:
 
                 donnees = {
                     "prenom": prenom.strip(),
                     "nom": nom.strip() or None,
                     "classe_actuelle":
-                        classe.strip() or None,
+                        classe.strip(),
                     "type_tarification":
                         type_tarification,
                     "tarif_horaire":
@@ -2463,23 +2838,46 @@ elif menu == "👨‍🎓 Élèves":
                 )
             )
 
-            classe = st.text_input(
-                "Niveau / Classe",
-                value=(
-                    str(
-                        ligne.get(
-                            "classe_actuelle",
-                            ""
-                        )
-                    )
-                    if pd.notna(
-                        ligne.get(
-                            "classe_actuelle"
-                        )
-                    )
-                    else ""
+            classe_actuelle = str(
+                ligne.get(
+                    "classe_actuelle",
+                    ""
                 )
+                or ""
             )
+
+            if classe_actuelle in NIVEAUX:
+
+                index_niveau = NIVEAUX.index(
+                    classe_actuelle
+                )
+
+            else:
+
+                index_niveau = NIVEAUX.index(
+                    "Autre"
+                )
+
+            niveau_choix = st.selectbox(
+                "Niveau / Classe",
+                NIVEAUX,
+                index=index_niveau
+            )
+
+            if niveau_choix == "Autre":
+
+                classe = st.text_input(
+                    "✏️ Saisir le niveau / la classe",
+                    value=(
+                        classe_actuelle
+                        if classe_actuelle not in NIVEAUX
+                        else ""
+                    )
+                )
+
+            else:
+
+                classe = niveau_choix
 
             type_tarification = st.selectbox(
                 "Type de tarification",
@@ -2551,64 +2949,78 @@ elif menu == "👨‍🎓 Élèves":
                 type="primary"
             ):
 
-                if contrat == "Autre":
+                if not prenom.strip():
 
-                    contrat_final = (
-                        contrat_precisions.strip()
+                    st.error(
+                        "Le prénom est obligatoire."
                     )
 
-                elif contrat_precisions.strip():
+                elif not classe.strip():
 
-                    contrat_final = (
-                        contrat
-                        + " — "
-                        + contrat_precisions.strip()
+                    st.error(
+                        "Le niveau / la classe est obligatoire."
                     )
 
                 else:
 
-                    contrat_final = contrat
+                    if contrat == "Autre":
 
-                modifications = {
-                    "prenom":
-                        prenom.strip(),
-                    "nom":
-                        nom.strip() or None,
-                    "classe_actuelle":
-                        classe.strip() or None,
-                    "type_tarification":
-                        type_tarification,
-                    "tarif_horaire":
-                        tarif_horaire,
-                    "forfait_mensuel":
-                        forfait_mensuel,
-                    "contrat":
-                        contrat_final
-                }
+                        contrat_final = (
+                            contrat_precisions.strip()
+                        )
 
-                try:
+                    elif contrat_precisions.strip():
 
-                    (
-                        supabase
-                        .table("eleves")
-                        .update(modifications)
-                        .eq("id", id_eleve)
-                        .execute()
-                    )
+                        contrat_final = (
+                            contrat
+                            + " — "
+                            + contrat_precisions.strip()
+                        )
 
-                    st.success(
-                        "✅ Élève modifié."
-                    )
+                    else:
 
-                    st.rerun()
+                        contrat_final = contrat
 
-                except Exception as e:
+                    modifications = {
+                        "prenom":
+                            prenom.strip(),
+                        "nom":
+                            nom.strip() or None,
+                        "classe_actuelle":
+                            classe.strip(),
+                        "type_tarification":
+                            type_tarification,
+                        "tarif_horaire":
+                            tarif_horaire,
+                        "forfait_mensuel":
+                            forfait_mensuel,
+                        "contrat":
+                            contrat_final
+                    }
 
-                    st.error(
-                        "Erreur modification."
-                    )
+                    try:
 
-                    st.code(str(e))
+                        (
+                            supabase
+                            .table("eleves")
+                            .update(modifications)
+                            .eq("id", id_eleve)
+                            .execute()
+                        )
+
+                        st.success(
+                            "✅ Élève modifié."
+                        )
+
+                        st.rerun()
+
+                    except Exception as e:
+
+                        st.error(
+                            "Erreur modification."
+                        )
+
+                        st.code(str(e))
 
     # ========================================================
     # SUPPRESSION
