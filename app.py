@@ -147,7 +147,7 @@ OBSERVATIONS = [
 
 
 # ============================================================
-# RÉCUPÉRER LES ÉLÈVES DEPUIS SUPABASE
+# RÉCUPÉRER LES ÉLÈVES
 # ============================================================
 
 def recuperer_eleves():
@@ -165,6 +165,7 @@ def recuperer_eleves():
         donnees = resultat.data
 
         if not donnees:
+
             return pd.DataFrame(
                 columns=[
                     "id",
@@ -187,7 +188,7 @@ def recuperer_eleves():
 
 
 # ============================================================
-# LISTE DES NOMS D'ÉLÈVES
+# LISTE DES ÉLÈVES
 # ============================================================
 
 def liste_eleves():
@@ -837,7 +838,9 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(table_infos)
+    elements.append(
+        table_infos
+    )
 
     elements.append(
         Spacer(1, 8)
@@ -981,7 +984,9 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(table_seances)
+    elements.append(
+        table_seances
+    )
 
     elements.append(
         Spacer(1, 7)
@@ -1059,7 +1064,9 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(total_table)
+    elements.append(
+        total_table
+    )
 
     elements.append(
         Spacer(1, 8)
@@ -1142,7 +1149,9 @@ def generer_facture_pdf(
             ])
         )
 
-        elements.append(table_bilan)
+        elements.append(
+            table_bilan
+        )
 
         elements.append(
             Spacer(1, 6)
@@ -1215,7 +1224,9 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(observation_table)
+    elements.append(
+        observation_table
+    )
 
     elements.append(
         Spacer(1, 8)
@@ -1312,7 +1323,9 @@ def generer_facture_pdf(
         ])
     )
 
-    elements.append(table_paiement)
+    elements.append(
+        table_paiement
+    )
 
     elements.append(
         Spacer(1, 8)
@@ -1325,7 +1338,9 @@ def generer_facture_pdf(
         )
     )
 
-    document.build(elements)
+    document.build(
+        elements
+    )
 
     buffer.seek(0)
 
@@ -1423,25 +1438,61 @@ if menu == "📚 Gestion des séances":
         )
 
         # ====================================================
-        # DISCIPLINE : LISTE + SAISIE LIBRE
+        # DISCIPLINE
         # ====================================================
 
-        disciplines = st.multiselect(
-            "Discipline(s)",
+        st.markdown("### 📚 Discipline(s)")
+
+        disciplines_selection = st.multiselect(
+            "Choisir une ou plusieurs disciplines",
             DISCIPLINES,
             default=["Mathématiques"],
-            accept_new_options=True,
             key="nouvelle_disciplines"
         )
 
+        discipline_personnalisee = st.text_input(
+            "➕ Saisir une autre discipline",
+            placeholder=(
+                "Exemple : SVT, Espagnol, "
+                "Algorithmique..."
+            ),
+            key="nouvelle_discipline_personnalisee"
+        )
+
+        disciplines_finales = (
+            disciplines_selection.copy()
+        )
+
+        if discipline_personnalisee.strip():
+
+            nouvelle_discipline = (
+                discipline_personnalisee.strip()
+            )
+
+            if nouvelle_discipline not in disciplines_finales:
+
+                disciplines_finales.append(
+                    nouvelle_discipline
+                )
+
+        # ----------------------------------------------------
+        # APERÇU DISCIPLINES
+        # ----------------------------------------------------
+
+        if disciplines_finales:
+
+            st.caption(
+                "Discipline(s) enregistrée(s) : "
+                + ", ".join(disciplines_finales)
+            )
+
         # ====================================================
-        # CONTENU : LISTE + SAISIE LIBRE
+        # CONTENU
         # ====================================================
 
         contenu_selection = st.multiselect(
             "Contenu",
             CONTENUS,
-            accept_new_options=True,
             key="nouvelle_contenu_selection"
         )
 
@@ -1462,29 +1513,30 @@ if menu == "📚 Gestion des séances":
             contenu += contenu_manuel.strip()
 
         # ====================================================
-        # TRAVAIL : LISTE + SAISIE LIBRE
+        # TRAVAIL
         # ====================================================
 
-        travail_selection = st.multiselect(
+        travail = st.selectbox(
             "Travail à faire",
             TRAVAUX,
-            accept_new_options=True,
             key="nouvelle_travail"
         )
 
-        travail = ", ".join(
-            travail_selection
-        )
+        if travail == "Autre":
+
+            travail = st.text_input(
+                "Préciser",
+                key="nouvelle_travail_autre"
+            )
 
         # ====================================================
-        # OBSERVATIONS : LISTE + SAISIE LIBRE
+        # OBSERVATIONS
         # ====================================================
 
         observations = st.multiselect(
             "Observations",
             OBSERVATIONS,
             default=["Élève attentif"],
-            accept_new_options=True,
             key="nouvelle_observations"
         )
 
@@ -1536,9 +1588,19 @@ if menu == "📚 Gestion des séances":
 
                 st.stop()
 
+            if not disciplines_finales:
+
+                st.error(
+                    "❌ Sélectionne ou saisis au moins "
+                    "une discipline."
+                )
+
+                st.stop()
+
             nouvelle_seance = {
 
-                "eleve": eleve,
+                "eleve":
+                    eleve,
 
                 "date":
                     date_seance.isoformat(),
@@ -1561,7 +1623,7 @@ if menu == "📚 Gestion des séances":
 
                 "disciplines":
                     ", ".join(
-                        disciplines
+                        disciplines_finales
                     ),
 
                 "contenu":
@@ -1591,7 +1653,9 @@ if menu == "📚 Gestion des séances":
 
                 try:
 
-                    ok, message = synchroniser_drive()
+                    ok, message = (
+                        synchroniser_drive()
+                    )
 
                     if ok:
                         st.success(message)
@@ -1615,7 +1679,7 @@ if menu == "📚 Gestion des séances":
                 st.code(str(e))
 
     # ========================================================
-    # MODIFIER UNE SÉANCE
+    # MODIFICATION D'UNE SÉANCE
     # ========================================================
 
     elif action == "✏️ Modifier une séance":
@@ -1711,15 +1775,64 @@ if menu == "📚 Gestion des séances":
                 )
             )
 
-            disciplines = st.text_input(
-                "Discipline(s)",
-                value=str(
-                    ligne.get(
-                        "disciplines",
-                        ""
-                    )
+            # =================================================
+            # DISCIPLINE MODIFICATION
+            # =================================================
+
+            disciplines_existantes = [
+                d.strip()
+                for d in str(
+                    ligne.get("disciplines", "")
+                ).split(",")
+                if d.strip()
+            ]
+
+            disciplines_connues = list(
+                dict.fromkeys(
+                    DISCIPLINES
+                    + disciplines_existantes
                 )
             )
+
+            disciplines_modifiees = st.multiselect(
+                "Discipline(s)",
+                disciplines_connues,
+                default=disciplines_existantes,
+                key=f"disciplines_modifiees_{identifiant}"
+            )
+
+            nouvelle_discipline_modifiee = st.text_input(
+                "➕ Ajouter une autre discipline",
+                placeholder="Exemple : SVT, Espagnol...",
+                key=f"nouvelle_discipline_modifiee_{identifiant}"
+            )
+
+            disciplines_finales_modifiees = (
+                disciplines_modifiees.copy()
+            )
+
+            if nouvelle_discipline_modifiee.strip():
+
+                nouvelle_discipline = (
+                    nouvelle_discipline_modifiee.strip()
+                )
+
+                if nouvelle_discipline not in (
+                    disciplines_finales_modifiees
+                ):
+
+                    disciplines_finales_modifiees.append(
+                        nouvelle_discipline
+                    )
+
+            if disciplines_finales_modifiees:
+
+                st.caption(
+                    "Discipline(s) : "
+                    + ", ".join(
+                        disciplines_finales_modifiees
+                    )
+                )
 
             contenu = st.text_area(
                 "Contenu",
@@ -1777,6 +1890,15 @@ if menu == "📚 Gestion des séances":
 
                     st.stop()
 
+                if not disciplines_finales_modifiees:
+
+                    st.error(
+                        "❌ Sélectionne ou saisis au moins "
+                        "une discipline."
+                    )
+
+                    st.stop()
+
                 modifications = {
 
                     "date":
@@ -1799,7 +1921,9 @@ if menu == "📚 Gestion des séances":
                         mode,
 
                     "disciplines":
-                        disciplines,
+                        ", ".join(
+                            disciplines_finales_modifiees
+                        ),
 
                     "contenu":
                         contenu,
@@ -1832,7 +1956,9 @@ if menu == "📚 Gestion des séances":
 
                     try:
 
-                        ok, message = synchroniser_drive()
+                        ok, message = (
+                            synchroniser_drive()
+                        )
 
                         if ok:
                             st.success(message)
