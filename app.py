@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
 import io
+import base64
 
-from supabase import create_client
 from datetime import date, time
 from io import BytesIO
+
+from supabase import create_client
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -18,6 +20,7 @@ from reportlab.platypus import (
     TableStyle
 )
 
+
 # ============================================================
 # CONFIGURATION
 # ============================================================
@@ -28,6 +31,7 @@ st.set_page_config(
     layout="wide"
 )
 
+
 # ============================================================
 # SUPABASE
 # ============================================================
@@ -36,6 +40,7 @@ supabase = create_client(
     st.secrets["SUPABASE_URL"],
     st.secrets["SUPABASE_KEY"]
 )
+
 
 # ============================================================
 # CONNEXION GOOGLE
@@ -58,6 +63,7 @@ if not st.user.is_logged_in:
 
     st.stop()
 
+
 # ============================================================
 # UTILISATEUR
 # ============================================================
@@ -68,6 +74,7 @@ st.sidebar.success(
 
 if st.sidebar.button("🚪 Se déconnecter"):
     st.logout()
+
 
 # ============================================================
 # MOT DE PASSE ENSEIGNANT
@@ -82,6 +89,7 @@ if mot_de_passe != st.secrets["mot_de_passe"]:
 
     st.info("🔒 Espace réservé à l'enseignant.")
     st.stop()
+
 
 # ============================================================
 # LISTES
@@ -214,6 +222,7 @@ CONTRATS = [
     "Autre"
 ]
 
+
 # ============================================================
 # ÉLÈVES
 # ============================================================
@@ -242,54 +251,7 @@ def recuperer_eleves():
         return pd.DataFrame()
 
 
-def liste_eleves():
-
-    df = recuperer_eleves()
-
-    if df.empty:
-        return []
-
-    resultats = []
-
-    for _, ligne in df.iterrows():
-
-        prenom = str(
-            ligne.get("prenom", "")
-        ).strip()
-
-        nom = str(
-            ligne.get("nom", "")
-        ).strip()
-
-        if not prenom:
-            continue
-
-        if nom:
-            resultats.append(
-                f"{prenom} {nom}"
-            )
-        else:
-            resultats.append(prenom)
-
-    return sorted(resultats)
-
-
-def recuperer_eleve_par_id(id_eleve):
-
-    df = recuperer_eleves()
-
-    if df.empty:
-        return None
-
-    lignes = df[df["id"] == id_eleve]
-
-    if lignes.empty:
-        return None
-
-    return lignes.iloc[0]
-
-
-def nom_eleve_depuis_ligne(ligne):
+def nom_affichage_eleve(ligne):
 
     prenom = str(
         ligne.get("prenom", "")
@@ -299,11 +261,65 @@ def nom_eleve_depuis_ligne(ligne):
         ligne.get("nom", "")
     ).strip()
 
-    return (
-        f"{prenom} {nom}".strip()
-        if nom
-        else prenom
+    if nom:
+        return f"{prenom} {nom}"
+
+    return prenom
+
+
+def liste_eleves_avec_id():
+
+    df = recuperer_eleves()
+
+    if df.empty:
+        return []
+
+    resultat = []
+
+    for _, ligne in df.iterrows():
+
+        if pd.isna(ligne.get("id")):
+            continue
+
+        nom = nom_affichage_eleve(ligne)
+
+        if nom:
+            resultat.append(
+                (
+                    int(ligne["id"]),
+                    nom
+                )
+            )
+
+    return sorted(
+        resultat,
+        key=lambda x: x[1].lower()
     )
+
+
+def recuperer_eleve(id_eleve):
+
+    try:
+
+        resultat = (
+            supabase
+            .table("eleves")
+            .select("*")
+            .eq("id", id_eleve)
+            .limit(1)
+            .execute()
+        )
+
+        if resultat.data:
+            return resultat.data[0]
+
+    except Exception as e:
+
+        st.error(
+            f"Erreur récupération élève : {e}"
+        )
+
+    return None
 
 
 # ============================================================
@@ -343,19 +359,27 @@ def recuperer_seances_eleve(id_eleve):
     if df.empty:
         return pd.DataFrame()
 
-    # Nouveau fonctionnement : eleve_id
-    if "eleve_id" in df.columns:
+    if "eleve_id" not in df.columns:
+        return pd.DataFrame()
 
-        resultat = df[
-            pd.to_numeric(
-                df["eleve_id"],
-                errors="coerce"
-            ) == int(id_eleve)
-        ].copy()
+    df = df[
+        pd.to_numeric(
+            df["eleve_id"],
+            errors="coerce"
+        ) == int(id_eleve)
+    ].copy()
 
-        return resultat
+    return df
 
-    return pd.DataFrame()
+
+def nom_eleve_depuis_id(id_eleve):
+
+    eleve = recuperer_eleve(id_eleve)
+
+    if eleve is None:
+        return "Élève inconnu"
+
+    return nom_affichage_eleve(eleve)
 
 
 # ============================================================
@@ -434,7 +458,9 @@ def dataframe_csv_bytes(df):
         encoding="utf-8-sig"
     )
 
-    return buffer.getvalue().encode("utf-8-sig")
+    return buffer.getvalue().encode(
+        "utf-8-sig"
+    )
 
 
 def sauvegarder_dans_drive(df):
@@ -443,7 +469,9 @@ def sauvegarder_dans_drive(df):
 
     service = obtenir_service_drive()
 
-    dossier_id = obtenir_dossier_cours_hercule(service)
+    dossier_id = obtenir_dossier_cours_hercule(
+        service
+    )
 
     contenu = dataframe_csv_bytes(df)
 
@@ -531,7 +559,9 @@ def sauvegarder_facture_pdf_dans_drive(
 
     service = obtenir_service_drive()
 
-    dossier_id = obtenir_dossier_cours_hercule(service)
+    dossier_id = obtenir_dossier_cours_hercule(
+        service
+    )
 
     media = MediaIoBaseUpload(
         BytesIO(pdf_bytes),
@@ -587,7 +617,7 @@ def sauvegarder_facture_pdf_dans_drive(
 
 
 # ============================================================
-# BILAN COMPORTEMENTAL
+# OBSERVATIONS
 # ============================================================
 
 def analyser_observations(df_eleve):
@@ -622,30 +652,6 @@ def analyser_observations(df_eleve):
     return bilan
 
 
-def generer_bilan_comportemental(df_eleve):
-
-    total = len(df_eleve)
-
-    if total == 0:
-        return "Aucune séance disponible."
-
-    bilan = analyser_observations(df_eleve)
-
-    lignes = []
-
-    for observation, nombre in bilan.items():
-
-        lignes.append(
-            f"{observation} : {nombre}/{total} séances"
-        )
-
-    if not lignes:
-
-        return "Aucune observation comportementale renseignée."
-
-    return "\n".join(lignes)
-
-
 def generer_observation_automatique(df_eleve):
 
     nombre_seances = len(df_eleve)
@@ -657,82 +663,48 @@ def generer_observation_automatique(df_eleve):
 
     phrases = []
 
-    attentif = bilan.get("Élève attentif", 0)
-    fatigue = bilan.get("Élève fatigué", 0)
-    distrait = bilan.get("Élève distrait", 0)
-    participation = bilan.get("Bonne participation", 0)
-    difficultes = bilan.get("Difficultés importantes", 0)
-    comprehension = bilan.get(
-        "Difficultés de compréhension", 0
-    )
-    progres = bilan.get("Progrès constatés", 0)
+    for observation in [
+        "Élève attentif",
+        "Très attentif",
+        "Bonne concentration",
+        "Concentration satisfaisante",
+        "Élève distrait",
+        "Difficultés de concentration",
+        "Bonne participation",
+        "Très bonne participation",
+        "Élève motivé",
+        "Bonne implication",
+        "Travail sérieux",
+        "Bonne autonomie",
+        "Difficultés de compréhension",
+        "Difficultés importantes",
+        "Notions à consolider",
+        "Progrès constatés",
+        "Progrès importants",
+        "Notions bien maîtrisées"
+    ]:
 
-    if attentif >= nombre_seances * 0.75:
-
-        phrases.append(
-            "L'élève s'est montré attentif "
-            "sur la majorité des séances."
+        nombre = bilan.get(
+            observation,
+            0
         )
 
-    elif attentif >= nombre_seances * 0.5:
+        if nombre > 0:
 
-        phrases.append(
-            "L'attention de l'élève est globalement satisfaisante."
-        )
-
-    if fatigue >= nombre_seances * 0.5:
-
-        phrases.append(
-            "Une certaine fatigue a été observée."
-        )
-
-    if distrait >= nombre_seances * 0.5:
-
-        phrases.append(
-            "Des difficultés de concentration "
-            "ont été observées régulièrement."
-        )
-
-    if participation >= nombre_seances * 0.5:
-
-        phrases.append(
-            "La participation est globalement satisfaisante."
-        )
-
-    if difficultes > 0:
-
-        phrases.append(
-            "Certaines difficultés nécessitent "
-            "encore un accompagnement."
-        )
-
-    elif comprehension > 0:
-
-        phrases.append(
-            "Certaines notions nécessitent "
-            "encore des consolidations."
-        )
-
-    if progres >= nombre_seances * 0.5:
-
-        phrases.append(
-            "Des progrès sont constatés "
-            "au cours de la période."
-        )
+            phrases.append(
+                f"{observation} : "
+                f"{nombre} séance(s) sur "
+                f"{nombre_seances}."
+            )
 
     if not phrases:
 
-        return (
-            "La période de travail s'est déroulée "
-            "dans de bonnes conditions. "
-            "La poursuite d'un travail régulier "
-            "est recommandée."
+        phrases.append(
+            "Aucune observation particulière "
+            "n'a été relevée."
         )
 
-    return " ".join(phrases) + (
-        " Un travail régulier est recommandé "
-        "afin de consolider les notions étudiées."
-    )
+    return " ".join(phrases)
 
 
 # ============================================================
@@ -751,7 +723,6 @@ def generer_facture_pdf(
     statut,
     date_paiement,
     type_tarification,
-    bilan_comportement,
     observation_pedagogique
 ):
 
@@ -793,7 +764,10 @@ def generer_facture_pdf(
     elements = []
 
     elements.append(
-        Paragraph("COURS HERCULE", titre)
+        Paragraph(
+            "COURS HERCULE",
+            titre
+        )
     )
 
     elements.append(
@@ -812,8 +786,12 @@ def generer_facture_pdf(
         errors="coerce"
     ).fillna(0)
 
-    total_minutes = df_eleve["duree_minutes"].sum()
+    total_minutes = (
+        df_eleve["duree_minutes"].sum()
+    )
+
     total_heures = total_minutes / 60
+
     nombre_seances = len(df_eleve)
 
     if type_tarification == "Forfait mensuel":
@@ -841,7 +819,7 @@ def generer_facture_pdf(
 
     montant_final = max(
         0,
-        sous_total - remise
+        sous_total - float(remise or 0)
     )
 
     infos = [
@@ -869,12 +847,25 @@ def generer_facture_pdf(
             Paragraph(str(nombre_seances), normal)
         ],
         [
+            Paragraph("<b>Total heures</b>", normal),
+            Paragraph(
+                f"{total_heures:.2f} h",
+                normal
+            )
+        ],
+        [
             Paragraph("<b>Tarification</b>", normal),
-            Paragraph(type_tarification, normal)
+            Paragraph(
+                type_tarification,
+                normal
+            )
         ],
         [
             Paragraph("<b>Tarif appliqué</b>", normal),
-            Paragraph(libelle_tarif, normal)
+            Paragraph(
+                libelle_tarif,
+                normal
+            )
         ]
     ]
 
@@ -886,12 +877,42 @@ def generer_facture_pdf(
     table_infos.setStyle(
         TableStyle([
             ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
-            ("BACKGROUND", (0, 0), (0, -1), colors.whitesmoke),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 5),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4)
+            (
+                "BACKGROUND",
+                (0, 0),
+                (0, -1),
+                colors.whitesmoke
+            ),
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
+            ),
+            (
+                "LEFTPADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            ),
+            (
+                "RIGHTPADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                4
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                4
+            )
         ])
     )
 
@@ -947,46 +968,106 @@ def generer_facture_pdf(
 
     table_seances = Table(
         donnees,
-        colWidths=[65, 85, 70, 240, 70],
+        colWidths=[
+            65,
+            85,
+            70,
+            240,
+            70
+        ],
         repeatRows=1
     )
 
     table_seances.setStyle(
         TableStyle([
             ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
-            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 7),
-            ("ALIGN", (4, 1), (4, -1), "RIGHT"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 3),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2)
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, 0),
+                colors.lightgrey
+            ),
+            (
+                "FONTNAME",
+                (0, 0),
+                (-1, 0),
+                "Helvetica-Bold"
+            ),
+            (
+                "FONTSIZE",
+                (0, 0),
+                (-1, -1),
+                7
+            ),
+            (
+                "ALIGN",
+                (4, 1),
+                (4, -1),
+                "RIGHT"
+            ),
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
+            ),
+            (
+                "LEFTPADDING",
+                (0, 0),
+                (-1, -1),
+                3
+            ),
+            (
+                "RIGHTPADDING",
+                (0, 0),
+                (-1, -1),
+                3
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                2
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                2
+            )
         ])
     )
 
     elements.append(table_seances)
-    elements.append(Spacer(1, 7))
+    elements.append(Spacer(1, 8))
 
     total_table = Table(
         [
             [
-                Paragraph("<b>Sous-total</b>", normal),
+                Paragraph(
+                    "<b>Sous-total</b>",
+                    normal
+                ),
                 Paragraph(
                     f"<b>{sous_total:.2f} €</b>",
                     droite
                 )
             ],
             [
-                Paragraph("<b>Remise</b>", normal),
                 Paragraph(
-                    f"<b>- {remise:.2f} €</b>",
+                    "<b>Remise</b>",
+                    normal
+                ),
+                Paragraph(
+                    f"<b>- {float(remise or 0):.2f} €</b>",
                     droite
                 )
             ],
             [
-                Paragraph("<b>TOTAL À PAYER</b>", normal),
+                Paragraph(
+                    "<b>TOTAL À PAYER</b>",
+                    normal
+                ),
                 Paragraph(
                     f"<b>{montant_final:.2f} €</b>",
                     droite
@@ -999,19 +1080,39 @@ def generer_facture_pdf(
     total_table.setStyle(
         TableStyle([
             ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
-            ("BACKGROUND", (0, 2), (-1, 2), colors.whitesmoke),
-            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4)
+            (
+                "BACKGROUND",
+                (0, 2),
+                (-1, 2),
+                colors.whitesmoke
+            ),
+            (
+                "ALIGN",
+                (1, 0),
+                (1, -1),
+                "RIGHT"
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                4
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                4
+            )
         ])
     )
 
     elements.append(total_table)
     elements.append(Spacer(1, 8))
 
-    # ========================================================
+    # --------------------------------------------------------
     # BILAN COMPORTEMENTAL
-    # ========================================================
+    # --------------------------------------------------------
 
     elements.append(
         Paragraph(
@@ -1020,50 +1121,90 @@ def generer_facture_pdf(
         )
     )
 
+    bilan = analyser_observations(df_eleve)
+
     lignes_bilan = []
 
-    for ligne in bilan_comportement.split("\n"):
+    for observation, nombre in bilan.items():
 
-        if ligne.strip():
-
-            lignes_bilan.append(
-                [Paragraph(ligne, normal)]
+        lignes_bilan.append([
+            Paragraph(
+                str(observation),
+                normal
+            ),
+            Paragraph(
+                f"{nombre} séance(s) sur "
+                f"{nombre_seances}",
+                droite
             )
+        ])
 
     if not lignes_bilan:
 
-        lignes_bilan = [
-            [
-                Paragraph(
-                    "Aucune observation comportementale renseignée.",
-                    normal
-                )
-            ]
-        ]
+        lignes_bilan.append([
+            Paragraph(
+                "Aucune observation enregistrée.",
+                normal
+            ),
+            Paragraph(
+                "",
+                normal
+            )
+        ])
 
     bilan_table = Table(
         lignes_bilan,
-        colWidths=[530]
+        colWidths=[380, 150]
     )
 
     bilan_table.setStyle(
         TableStyle([
-            ("BOX", (0, 0), (-1, -1), 0.4, colors.grey),
-            ("INNERGRID", (0, 0), (-1, -1), 0.2, colors.grey),
-            ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4)
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, -1),
+                colors.whitesmoke
+            ),
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
+            ),
+            (
+                "LEFTPADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            ),
+            (
+                "RIGHTPADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                4
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                4
+            )
         ])
     )
 
     elements.append(bilan_table)
     elements.append(Spacer(1, 8))
 
-    # ========================================================
+    # --------------------------------------------------------
     # OBSERVATION PÉDAGOGIQUE PERSONNALISÉE
-    # ========================================================
+    # --------------------------------------------------------
 
     elements.append(
         Paragraph(
@@ -1075,10 +1216,8 @@ def generer_facture_pdf(
     obs_table = Table(
         [[
             Paragraph(
-                observation_pedagogique.replace(
-                    "\n",
-                    "<br/>"
-                ),
+                observation_pedagogique
+                .replace("\n", "<br/>"),
                 normal
             )
         ]],
@@ -1087,21 +1226,52 @@ def generer_facture_pdf(
 
     obs_table.setStyle(
         TableStyle([
-            ("BOX", (0, 0), (-1, -1), 0.4, colors.grey),
-            ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5)
+            (
+                "BOX",
+                (0, 0),
+                (-1, -1),
+                0.4,
+                colors.grey
+            ),
+            (
+                "BACKGROUND",
+                (0, 0),
+                (-1, -1),
+                colors.whitesmoke
+            ),
+            (
+                "LEFTPADDING",
+                (0, 0),
+                (-1, -1),
+                6
+            ),
+            (
+                "RIGHTPADDING",
+                (0, 0),
+                (-1, -1),
+                6
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                5
+            )
         ])
     )
 
     elements.append(obs_table)
     elements.append(Spacer(1, 8))
 
-    # ========================================================
+    # --------------------------------------------------------
     # PAIEMENT
-    # ========================================================
+    # --------------------------------------------------------
 
     statut_pdf = (
         "PAYÉE"
@@ -1117,15 +1287,24 @@ def generer_facture_pdf(
 
     paiement = [
         [
-            Paragraph("<b>Statut</b>", normal),
+            Paragraph(
+                "<b>Statut</b>",
+                normal
+            ),
             Paragraph(
                 f"<b>{statut_pdf}</b>",
                 normal
             )
         ],
         [
-            Paragraph("<b>Date de paiement</b>", normal),
-            Paragraph(date_pdf, normal)
+            Paragraph(
+                "<b>Date de paiement</b>",
+                normal
+            ),
+            Paragraph(
+                date_pdf,
+                normal
+            )
         ]
     ]
 
@@ -1137,9 +1316,24 @@ def generer_facture_pdf(
     table_paiement.setStyle(
         TableStyle([
             ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
-            ("BACKGROUND", (0, 0), (0, -1), colors.whitesmoke),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4)
+            (
+                "BACKGROUND",
+                (0, 0),
+                (0, -1),
+                colors.whitesmoke
+            ),
+            (
+                "TOPPADDING",
+                (0, 0),
+                (-1, -1),
+                4
+            ),
+            (
+                "BOTTOMPADDING",
+                (0, 0),
+                (-1, -1),
+                4
+            )
         ])
     )
 
@@ -1161,8 +1355,64 @@ def generer_facture_pdf(
 
 
 # ============================================================
-# FACTURES SUPABASE
+# AFFICHER PDF DANS STREAMLIT
 # ============================================================
+
+def afficher_pdf(pdf_bytes):
+
+    base64_pdf = base64.b64encode(
+        pdf_bytes
+    ).decode("utf-8")
+
+    pdf_display = f"""
+    <iframe
+        src="data:application/pdf;base64,{base64_pdf}"
+        width="100%"
+        height="850"
+        type="application/pdf">
+    </iframe>
+    """
+
+    st.components.v1.html(
+        pdf_display,
+        height=870
+    )
+
+
+# ============================================================
+# FACTURES
+# ============================================================
+
+def recuperer_factures():
+
+    try:
+
+        resultat = (
+            supabase
+            .table("factures")
+            .select("*")
+            .order(
+                "date_facture",
+                desc=True
+            )
+            .execute()
+        )
+
+        if not resultat.data:
+            return pd.DataFrame()
+
+        return pd.DataFrame(
+            resultat.data
+        )
+
+    except Exception as e:
+
+        st.error(
+            f"Erreur récupération factures : {e}"
+        )
+
+        return pd.DataFrame()
+
 
 def enregistrer_facture(
     numero_facture,
@@ -1175,9 +1425,7 @@ def enregistrer_facture(
     remise,
     montant_total,
     statut,
-    date_paiement,
-    bilan_comportement,
-    observation_pedagogique
+    date_paiement
 ):
 
     donnees = {
@@ -1185,21 +1433,30 @@ def enregistrer_facture(
         "eleve": eleve,
         "periode": periode,
         "date_facture": date.today().isoformat(),
-        "nombre_seances": int(nombre_seances),
-        "total_heures": float(total_heures),
-        "tarif_horaire": float(tarif_horaire or 0),
-        "forfait_mensuel": float(forfait_mensuel or 0),
-        "remise": float(remise or 0),
-        "montant_total": float(montant_total),
+        "nombre_seances": int(
+            nombre_seances
+        ),
+        "total_heures": float(
+            total_heures
+        ),
+        "tarif_horaire": float(
+            tarif_horaire or 0
+        ),
+        "forfait_mensuel": float(
+            forfait_mensuel or 0
+        ),
+        "remise": float(
+            remise or 0
+        ),
+        "montant_total": float(
+            montant_total
+        ),
         "statut": statut,
         "date_paiement": (
             date_paiement.isoformat()
             if date_paiement
             else None
-        ),
-        "bilan_comportement": bilan_comportement,
-        "observation_pedagogique":
-            observation_pedagogique
+        )
     }
 
     return (
@@ -1210,37 +1467,12 @@ def enregistrer_facture(
     )
 
 
-def recuperer_factures():
-
-    try:
-
-        resultat = (
-            supabase
-            .table("factures")
-            .select("*")
-            .order("date_facture", desc=True)
-            .execute()
-        )
-
-        if not resultat.data:
-            return pd.DataFrame()
-
-        return pd.DataFrame(resultat.data)
-
-    except Exception as e:
-
-        st.error(
-            f"Erreur récupération factures : {e}"
-        )
-
-        return pd.DataFrame()
-
-
 # ============================================================
 # TITRE
 # ============================================================
 
 st.title("📚 Cours Hercule")
+
 
 # ============================================================
 # MENU
@@ -1256,6 +1488,7 @@ menu = st.sidebar.radio(
         "👨‍🎓 Élèves"
     ]
 )
+
 
 # ============================================================
 # GESTION DES SÉANCES
@@ -1275,11 +1508,13 @@ if menu == "📚 Gestion des séances":
         horizontal=True
     )
 
-    df_eleves = recuperer_eleves()
+    eleves = liste_eleves_avec_id()
 
-    if df_eleves.empty:
+    if not eleves:
 
-        st.warning("Aucun élève enregistré.")
+        st.warning(
+            "Aucun élève enregistré."
+        )
 
     # ========================================================
     # NOUVELLE SÉANCE
@@ -1289,25 +1524,14 @@ if menu == "📚 Gestion des séances":
 
         st.subheader("➕ Nouvelle séance")
 
-        choix_eleves = []
-
-        for _, ligne in df_eleves.iterrows():
-
-            choix_eleves.append(
-                (
-                    int(ligne["id"]),
-                    nom_eleve_depuis_ligne(ligne)
-                )
-            )
-
-        eleve_choisi = st.selectbox(
+        eleve_selection = st.selectbox(
             "Élève",
-            choix_eleves,
+            eleves,
             format_func=lambda x: x[1]
         )
 
-        eleve_id = eleve_choisi[0]
-        eleve = eleve_choisi[1]
+        eleve_id = eleve_selection[0]
+        eleve_nom = eleve_selection[1]
 
         date_seance = st.date_input(
             "Date *",
@@ -1326,7 +1550,10 @@ if menu == "📚 Gestion des séances":
 
         mode = st.selectbox(
             "Mode",
-            ["Présentiel", "Distanciel"]
+            [
+                "Présentiel",
+                "Distanciel"
+            ]
         )
 
         disciplines = st.multiselect(
@@ -1336,13 +1563,16 @@ if menu == "📚 Gestion des séances":
         )
 
         discipline_autre = st.text_input(
-            "✏️ Autre discipline",
-            placeholder="Saisir une discipline..."
+            "✏️ Autre discipline"
+        )
+
+        disciplines_finales = list(
+            disciplines
         )
 
         if discipline_autre.strip():
 
-            disciplines.append(
+            disciplines_finales.append(
                 discipline_autre.strip()
             )
 
@@ -1372,17 +1602,24 @@ if menu == "📚 Gestion des séances":
         )
 
         travail_manuel = st.text_input(
-            "✏️ Précision sur le travail à faire",
-            placeholder="Ex. exercices 12 à 15..."
+            "✏️ Précision sur le travail à faire"
         )
 
         if travail == "Autre":
 
-            travail = travail_manuel
+            travail_final = travail_manuel.strip()
 
         elif travail_manuel.strip():
 
-            travail += " — " + travail_manuel.strip()
+            travail_final = (
+                travail
+                + " — "
+                + travail_manuel.strip()
+            )
+
+        else:
+
+            travail_final = travail
 
         observations = st.multiselect(
             "Observations",
@@ -1435,35 +1672,20 @@ if menu == "📚 Gestion des séances":
 
             nouvelle_seance = {
                 "eleve_id": eleve_id,
-
-                # Conservé pour compatibilité /
-                # historique
-                "eleve": eleve,
-
-                "date":
-                    date_seance.isoformat(),
-
+                "eleve": eleve_nom,
+                "date": date_seance.isoformat(),
                 "heure_debut":
                     heure_debut.strftime("%H:%M:%S"),
-
                 "heure_fin":
                     heure_fin.strftime("%H:%M:%S"),
-
-                "duree_minutes":
-                    duree,
-
-                "mode":
-                    mode,
-
+                "duree_minutes": duree,
+                "mode": mode,
                 "disciplines":
-                    ", ".join(disciplines),
-
-                "contenu":
-                    contenu,
-
-                "travail":
-                    travail,
-
+                    ", ".join(
+                        disciplines_finales
+                    ),
+                "contenu": contenu,
+                "travail": travail_final,
                 "observations":
                     observations_finales
             }
@@ -1473,7 +1695,9 @@ if menu == "📚 Gestion des séances":
                 (
                     supabase
                     .table("seances")
-                    .insert(nouvelle_seance)
+                    .insert(
+                        nouvelle_seance
+                    )
                     .execute()
                 )
 
@@ -1491,333 +1715,319 @@ if menu == "📚 Gestion des séances":
             except Exception as e:
 
                 st.error(
-                    "Erreur lors de l'enregistrement."
+                    "❌ Erreur lors de l'enregistrement."
                 )
 
                 st.code(str(e))
 
     # ========================================================
-    # MODIFIER UNE SÉANCE
+    # MODIFIER
     # ========================================================
 
     elif action == "✏️ Modifier une séance":
 
-        st.subheader("✏️ Modifier une séance")
-
-        df = recuperer_seances()
-
-        if df.empty:
-
-            st.info("Aucune séance.")
-
-        else:
-
-            # On sélectionne les élèves à partir de
-            # leur ID et non de leur nom
-            ids_eleves = sorted(
-                pd.to_numeric(
-                    df["eleve_id"],
-                    errors="coerce"
-                )
-                .dropna()
-                .astype(int)
-                .unique()
-                .tolist()
-            )
-
-            choix_eleves = []
-
-            for id_eleve in ids_eleves:
-
-                ligne_eleve = recuperer_eleve_par_id(
-                    id_eleve
-                )
-
-                if ligne_eleve is not None:
-
-                    choix_eleves.append(
-                        (
-                            id_eleve,
-                            nom_eleve_depuis_ligne(
-                                ligne_eleve
-                            )
-                        )
-                    )
-
-            if not choix_eleves:
-
-                st.warning(
-                    "Aucune séance correctement rattachée."
-                )
-
-            else:
-
-                eleve_choisi = st.selectbox(
-                    "Élève",
-                    choix_eleves,
-                    format_func=lambda x: x[1]
-                )
-
-                eleve_id = eleve_choisi[0]
-
-                df_eleve = recuperer_seances_eleve(
-                    eleve_id
-                )
-
-                choix = []
-
-                for _, ligne in df_eleve.iterrows():
-
-                    choix.append(
-                        (
-                            ligne["id"],
-                            f"{ligne['date']} - "
-                            f"{str(ligne.get('heure_debut',''))[:5]} - "
-                            f"{ligne.get('contenu','')}"
-                        )
-                    )
-
-                selection = st.selectbox(
-                    "Séance",
-                    choix,
-                    format_func=lambda x: x[1]
-                )
-
-                identifiant = selection[0]
-
-                ligne = df_eleve[
-                    df_eleve["id"] == identifiant
-                ].iloc[0]
-
-                nouvelle_date = st.date_input(
-                    "Date",
-                    value=pd.to_datetime(
-                        ligne["date"]
-                    ).date()
-                )
-
-                heure_debut = st.time_input(
-                    "Heure de début",
-                    value=pd.to_datetime(
-                        ligne["heure_debut"]
-                    ).time()
-                )
-
-                heure_fin = st.time_input(
-                    "Heure de fin",
-                    value=pd.to_datetime(
-                        ligne["heure_fin"]
-                    ).time()
-                )
-
-                mode = st.selectbox(
-                    "Mode",
-                    ["Présentiel", "Distanciel"],
-                    index=(
-                        0
-                        if ligne.get("mode")
-                        == "Présentiel"
-                        else 1
-                    )
-                )
-
-                disciplines = st.text_input(
-                    "Discipline(s)",
-                    value=str(
-                        ligne.get("disciplines", "")
-                    )
-                )
-
-                contenu = st.text_area(
-                    "Contenu",
-                    value=str(
-                        ligne.get("contenu", "")
-                    )
-                )
-
-                travail = st.text_area(
-                    "Travail à faire",
-                    value=str(
-                        ligne.get("travail", "")
-                    )
-                )
-
-                observations = st.text_area(
-                    "Observations",
-                    value=str(
-                        ligne.get("observations", "")
-                    )
-                )
-
-                if st.button(
-                    "💾 Enregistrer les modifications",
-                    type="primary"
-                ):
-
-                    debut = (
-                        heure_debut.hour * 60
-                        + heure_debut.minute
-                    )
-
-                    fin = (
-                        heure_fin.hour * 60
-                        + heure_fin.minute
-                    )
-
-                    duree = fin - debut
-
-                    if duree <= 0:
-
-                        st.error(
-                            "Horaire incorrect."
-                        )
-
-                        st.stop()
-
-                    modifications = {
-                        "date":
-                            nouvelle_date.isoformat(),
-
-                        "heure_debut":
-                            heure_debut.strftime("%H:%M:%S"),
-
-                        "heure_fin":
-                            heure_fin.strftime("%H:%M:%S"),
-
-                        "duree_minutes":
-                            duree,
-
-                        "mode":
-                            mode,
-
-                        "disciplines":
-                            disciplines,
-
-                        "contenu":
-                            contenu,
-
-                        "travail":
-                            travail,
-
-                        "observations":
-                            observations
-                    }
-
-                    try:
-
-                        (
-                            supabase
-                            .table("seances")
-                            .update(modifications)
-                            .eq("id", identifiant)
-                            .execute()
-                        )
-
-                        st.success(
-                            "✅ Séance modifiée."
-                        )
-
-                        ok, message = synchroniser_drive()
-
-                        if ok:
-                            st.success(message)
-
-                        st.rerun()
-
-                    except Exception as e:
-
-                        st.error(
-                            "Erreur modification."
-                        )
-
-                        st.code(str(e))
-
-    # ========================================================
-    # SUPPRIMER UNE SÉANCE
-    # ========================================================
-
-    else:
-
-        st.subheader("🗑️ Supprimer une séance")
+        st.subheader(
+            "✏️ Modifier une séance"
+        )
 
         df = recuperer_seances()
 
         if df.empty:
 
             st.info(
-                "Aucune séance enregistrée."
+                "Aucune séance."
             )
 
         else:
 
-            ids_eleves = sorted(
-                pd.to_numeric(
-                    df["eleve_id"],
-                    errors="coerce"
+            if "eleve_id" not in df.columns:
+
+                st.error(
+                    "La colonne eleve_id est absente "
+                    "de la table seances."
                 )
-                .dropna()
-                .astype(int)
-                .unique()
-                .tolist()
-            )
+
+                st.stop()
+
+            df = df[
+                df["eleve_id"].notna()
+            ].copy()
 
             choix_eleves = []
 
-            for id_eleve in ids_eleves:
+            for id_eleve in sorted(
+                df["eleve_id"].unique()
+            ):
 
-                ligne_eleve = recuperer_eleve_par_id(
-                    id_eleve
-                )
-
-                if ligne_eleve is not None:
-
-                    choix_eleves.append(
-                        (
-                            id_eleve,
-                            nom_eleve_depuis_ligne(
-                                ligne_eleve
-                            )
+                choix_eleves.append(
+                    (
+                        int(id_eleve),
+                        nom_eleve_depuis_id(
+                            int(id_eleve)
                         )
                     )
+                )
 
-            eleve_choisi = st.selectbox(
+            eleve_selection = st.selectbox(
                 "Élève",
                 choix_eleves,
                 format_func=lambda x: x[1]
             )
 
-            eleve_id = eleve_choisi[0]
+            eleve_id = eleve_selection[0]
 
-            df_eleve = recuperer_seances_eleve(
-                eleve_id
+            df_eleve = df[
+                pd.to_numeric(
+                    df["eleve_id"],
+                    errors="coerce"
+                ) == eleve_id
+            ].copy()
+
+            choix = []
+
+            for _, ligne in df_eleve.iterrows():
+
+                choix.append(
+                    (
+                        int(ligne["id"]),
+                        f"{ligne.get('date','')} | "
+                        f"{str(ligne.get('heure_debut',''))[:5]} → "
+                        f"{str(ligne.get('heure_fin',''))[:5]} | "
+                        f"{ligne.get('contenu','')}"
+                    )
+                )
+
+            seance = st.selectbox(
+                "Séance",
+                choix,
+                format_func=lambda x: x[1]
             )
+
+            identifiant = seance[0]
+
+            ligne = df_eleve[
+                df_eleve["id"] == identifiant
+            ].iloc[0]
+
+            nouvelle_date = st.date_input(
+                "Date",
+                value=pd.to_datetime(
+                    ligne["date"]
+                ).date()
+            )
+
+            heure_debut = st.time_input(
+                "Heure de début",
+                value=pd.to_datetime(
+                    ligne["heure_debut"]
+                ).time()
+            )
+
+            heure_fin = st.time_input(
+                "Heure de fin",
+                value=pd.to_datetime(
+                    ligne["heure_fin"]
+                ).time()
+            )
+
+            mode = st.selectbox(
+                "Mode",
+                [
+                    "Présentiel",
+                    "Distanciel"
+                ],
+                index=(
+                    0
+                    if ligne.get("mode")
+                    == "Présentiel"
+                    else 1
+                )
+            )
+
+            disciplines = st.text_input(
+                "Discipline(s)",
+                value=str(
+                    ligne.get(
+                        "disciplines",
+                        ""
+                    )
+                )
+            )
+
+            contenu = st.text_area(
+                "Contenu",
+                value=str(
+                    ligne.get(
+                        "contenu",
+                        ""
+                    )
+                )
+            )
+
+            travail = st.text_area(
+                "Travail à faire",
+                value=str(
+                    ligne.get(
+                        "travail",
+                        ""
+                    )
+                )
+            )
+
+            observations = st.text_area(
+                "Observations",
+                value=str(
+                    ligne.get(
+                        "observations",
+                        ""
+                    )
+                )
+            )
+
+            if st.button(
+                "💾 Enregistrer les modifications",
+                type="primary"
+            ):
+
+                debut = (
+                    heure_debut.hour * 60
+                    + heure_debut.minute
+                )
+
+                fin = (
+                    heure_fin.hour * 60
+                    + heure_fin.minute
+                )
+
+                duree = fin - debut
+
+                if duree <= 0:
+
+                    st.error(
+                        "Horaire incorrect."
+                    )
+
+                    st.stop()
+
+                modifications = {
+                    "date":
+                        nouvelle_date.isoformat(),
+                    "heure_debut":
+                        heure_debut.strftime("%H:%M:%S"),
+                    "heure_fin":
+                        heure_fin.strftime("%H:%M:%S"),
+                    "duree_minutes":
+                        duree,
+                    "mode": mode,
+                    "disciplines":
+                        disciplines,
+                    "contenu":
+                        contenu,
+                    "travail":
+                        travail,
+                    "observations":
+                        observations
+                }
+
+                try:
+
+                    (
+                        supabase
+                        .table("seances")
+                        .update(
+                            modifications
+                        )
+                        .eq(
+                            "id",
+                            identifiant
+                        )
+                        .execute()
+                    )
+
+                    st.success(
+                        "✅ Séance modifiée."
+                    )
+
+                    ok, message = synchroniser_drive()
+
+                    if ok:
+                        st.success(message)
+
+                    st.rerun()
+
+                except Exception as e:
+
+                    st.error(
+                        "❌ Erreur modification."
+                    )
+
+                    st.code(str(e))
+
+    # ========================================================
+    # SUPPRIMER
+    # ========================================================
+
+    else:
+
+        st.subheader(
+            "🗑️ Supprimer une séance"
+        )
+
+        df = recuperer_seances()
+
+        if df.empty:
+
+            st.info(
+                "Aucune séance."
+            )
+
+        else:
+
+            df = df[
+                df["eleve_id"].notna()
+            ].copy()
+
+            choix_eleves = []
+
+            for id_eleve in sorted(
+                df["eleve_id"].unique()
+            ):
+
+                choix_eleves.append(
+                    (
+                        int(id_eleve),
+                        nom_eleve_depuis_id(
+                            int(id_eleve)
+                        )
+                    )
+                )
+
+            eleve_selection = st.selectbox(
+                "Élève",
+                choix_eleves,
+                format_func=lambda x: x[1]
+            )
+
+            eleve_id = eleve_selection[0]
+
+            df_eleve = df[
+                pd.to_numeric(
+                    df["eleve_id"],
+                    errors="coerce"
+                ) == eleve_id
+            ].copy()
 
             choix_seances = []
 
             for _, ligne in df_eleve.iterrows():
 
-                date_affichage = str(
-                    ligne.get("date", "")
-                )
-
-                heure_debut = str(
-                    ligne.get("heure_debut", "")
-                )[:5]
-
-                heure_fin = str(
-                    ligne.get("heure_fin", "")
-                )[:5]
-
-                contenu = str(
-                    ligne.get("contenu", "")
-                )
-
                 choix_seances.append(
                     (
-                        ligne["id"],
-                        f"{date_affichage} | "
-                        f"{heure_debut} → {heure_fin} | "
-                        f"{contenu}"
+                        int(ligne["id"]),
+                        f"{ligne.get('date','')} | "
+                        f"{str(ligne.get('heure_debut',''))[:5]} → "
+                        f"{str(ligne.get('heure_fin',''))[:5]} | "
+                        f"{ligne.get('contenu','')}"
                     )
                 )
 
@@ -1835,37 +2045,23 @@ if menu == "📚 Gestion des séances":
 
             st.info(
                 f"""
-**Élève :** {ligne.get('eleve', '')}
+**Élève :** {nom_eleve_depuis_id(eleve_id)}
 
 **Date :** {ligne.get('date', '')}
 
-**Horaire :**
-{str(ligne.get('heure_debut', ''))[:5]}
-→
-{str(ligne.get('heure_fin', ''))[:5]}
+**Horaire :** {str(ligne.get('heure_debut', ''))[:5]}
+→ {str(ligne.get('heure_fin', ''))[:5]}
 
-**Durée :**
-{ligne.get('duree_minutes', 0)} minutes
+**Durée :** {ligne.get('duree_minutes', 0)} minutes
 
-**Mode :** {ligne.get('mode', '')}
+**Discipline :** {ligne.get('disciplines', '')}
 
-**Discipline :**
-{ligne.get('disciplines', '')}
+**Contenu :** {ligne.get('contenu', '')}
 
-**Contenu :**
-{ligne.get('contenu', '')}
+**Travail :** {ligne.get('travail', '')}
 
-**Travail :**
-{ligne.get('travail', '')}
-
-**Observations :**
-{ligne.get('observations', '')}
+**Observations :** {ligne.get('observations', '')}
 """
-            )
-
-            st.warning(
-                "⚠️ Cette action supprimera définitivement "
-                "la séance."
             )
 
             confirmation = st.checkbox(
@@ -1880,7 +2076,7 @@ if menu == "📚 Gestion des séances":
                 if not confirmation:
 
                     st.error(
-                        "Veuillez confirmer la suppression."
+                        "Veuillez confirmer."
                     )
 
                 else:
@@ -1891,12 +2087,15 @@ if menu == "📚 Gestion des séances":
                             supabase
                             .table("seances")
                             .delete()
-                            .eq("id", id_seance)
+                            .eq(
+                                "id",
+                                id_seance
+                            )
                             .execute()
                         )
 
                         st.success(
-                            "✅ Séance supprimée définitivement."
+                            "✅ Séance supprimée."
                         )
 
                         ok, message = synchroniser_drive()
@@ -1909,7 +2108,7 @@ if menu == "📚 Gestion des séances":
                     except Exception as e:
 
                         st.error(
-                            "❌ Erreur lors de la suppression."
+                            "❌ Erreur suppression."
                         )
 
                         st.code(str(e))
@@ -1923,32 +2122,21 @@ elif menu == "📖 Cahier de texte":
 
     st.header("📖 Cahier de texte")
 
-    df_eleves = recuperer_eleves()
+    eleves = liste_eleves_avec_id()
 
-    if df_eleves.empty:
+    if not eleves:
 
         st.info("Aucun élève.")
 
     else:
 
-        choix_eleves = []
-
-        for _, ligne in df_eleves.iterrows():
-
-            choix_eleves.append(
-                (
-                    int(ligne["id"]),
-                    nom_eleve_depuis_ligne(ligne)
-                )
-            )
-
-        eleve_choisi = st.selectbox(
+        eleve_selection = st.selectbox(
             "Élève",
-            choix_eleves,
+            eleves,
             format_func=lambda x: x[1]
         )
 
-        eleve_id = eleve_choisi[0]
+        eleve_id = eleve_selection[0]
 
         df_eleve = recuperer_seances_eleve(
             eleve_id
@@ -1970,13 +2158,14 @@ elif menu == "📖 Cahier de texte":
                 st.markdown("---")
 
                 st.write(
-                    f"### 📅 {ligne['date']}"
+                    f"### 📅 {ligne.get('date','')}"
                 )
 
                 st.write(
                     f"**Horaire :** "
-                    f"{str(ligne['heure_debut'])[:5]} → "
-                    f"{str(ligne['heure_fin'])[:5]}"
+                    f"{str(ligne.get('heure_debut',''))[:5]} "
+                    f"→ "
+                    f"{str(ligne.get('heure_fin',''))[:5]}"
                 )
 
                 st.write(
@@ -2013,32 +2202,21 @@ elif menu == "📊 Bilan":
 
     st.header("📊 Bilan")
 
-    df_eleves = recuperer_eleves()
+    eleves = liste_eleves_avec_id()
 
-    if df_eleves.empty:
+    if not eleves:
 
         st.info("Aucun élève.")
 
     else:
 
-        choix_eleves = []
-
-        for _, ligne in df_eleves.iterrows():
-
-            choix_eleves.append(
-                (
-                    int(ligne["id"]),
-                    nom_eleve_depuis_ligne(ligne)
-                )
-            )
-
-        eleve_choisi = st.selectbox(
+        eleve_selection = st.selectbox(
             "Élève",
-            choix_eleves,
+            eleves,
             format_func=lambda x: x[1]
         )
 
-        eleve_id = eleve_choisi[0]
+        eleve_id = eleve_selection[0]
 
         df_eleve = recuperer_seances_eleve(
             eleve_id
@@ -2052,10 +2230,14 @@ elif menu == "📊 Bilan":
 
         else:
 
-            total_minutes = pd.to_numeric(
+            df_eleve["duree_minutes"] = pd.to_numeric(
                 df_eleve["duree_minutes"],
                 errors="coerce"
-            ).fillna(0).sum()
+            ).fillna(0)
+
+            total_minutes = (
+                df_eleve["duree_minutes"].sum()
+            )
 
             col1, col2 = st.columns(2)
 
@@ -2085,7 +2267,8 @@ elif menu == "📊 Bilan":
 
                 st.write(
                     f"**{observation} :** "
-                    f"{nombre}/{len(df_eleve)}"
+                    f"{nombre} séance(s) sur "
+                    f"{len(df_eleve)}"
                 )
 
             st.subheader(
@@ -2100,7 +2283,8 @@ elif menu == "📊 Bilan":
 
             st.dataframe(
                 df_eleve,
-                use_container_width=True
+                use_container_width=True,
+                hide_index=True
             )
 
 
@@ -2128,40 +2312,27 @@ elif menu == "🧾 Facturation":
 
     if sous_menu == "🧾 Nouvelle facture":
 
-        df_eleves = recuperer_eleves()
+        eleves = liste_eleves_avec_id()
 
-        if df_eleves.empty:
+        if not eleves:
 
             st.info(
-                "Aucun élève disponible."
+                "Aucun élève."
             )
 
         else:
 
-            choix_eleves = []
-
-            for _, ligne in df_eleves.iterrows():
-
-                choix_eleves.append(
-                    (
-                        int(ligne["id"]),
-                        nom_eleve_depuis_ligne(ligne)
-                    )
-                )
-
-            eleve_choisi = st.selectbox(
+            eleve_selection = st.selectbox(
                 "Élève",
-                choix_eleves,
+                eleves,
                 format_func=lambda x: x[1]
             )
 
-            eleve_id = eleve_choisi[0]
-            eleve = eleve_choisi[1]
+            eleve_id = eleve_selection[0]
+            eleve = eleve_selection[1]
 
-            informations_eleve = (
-                recuperer_eleve_par_id(
-                    eleve_id
-                )
+            informations_eleve = recuperer_eleve(
+                eleve_id
             )
 
             niveau_existant = ""
@@ -2170,17 +2341,16 @@ elif menu == "🧾 Facturation":
                 "Tarif horaire"
             )
 
-            tarif_horaire = 0.0
-            forfait_mensuel = 0.0
+            tarif_horaire_eleve = 0.0
+            forfait_mensuel_eleve = 0.0
 
-            if informations_eleve is not None:
+            if informations_eleve:
 
                 niveau_existant = (
                     informations_eleve.get(
                         "classe_actuelle",
                         ""
-                    )
-                    or ""
+                    ) or ""
                 )
 
                 type_tarification_eleve = (
@@ -2191,20 +2361,18 @@ elif menu == "🧾 Facturation":
                     or "Tarif horaire"
                 )
 
-                tarif_horaire = float(
+                tarif_horaire_eleve = float(
                     informations_eleve.get(
                         "tarif_horaire",
                         0
-                    )
-                    or 0
+                    ) or 0
                 )
 
-                forfait_mensuel = float(
+                forfait_mensuel_eleve = float(
                     informations_eleve.get(
                         "forfait_mensuel",
                         0
-                    )
-                    or 0
+                    ) or 0
                 )
 
             # ------------------------------------------------
@@ -2230,12 +2398,7 @@ elif menu == "🧾 Facturation":
             if niveau_choix == "Autre":
 
                 niveau = st.text_input(
-                    "✏️ Saisir le niveau / la classe",
-                    value=(
-                        niveau_existant
-                        if niveau_existant not in NIVEAUX
-                        else ""
-                    )
+                    "Niveau / classe"
                 )
 
             else:
@@ -2312,8 +2475,8 @@ elif menu == "🧾 Facturation":
                     )
 
                 date_fin_inclusive = (
-                    date_fin -
-                    pd.Timedelta(days=1)
+                    date_fin
+                    - pd.Timedelta(days=1)
                 )
 
             else:
@@ -2441,37 +2604,35 @@ elif menu == "🧾 Facturation":
                 tarif_horaire = st.number_input(
                     "Tarif horaire (€)",
                     min_value=0.0,
-                    value=float(tarif_horaire),
+                    value=tarif_horaire_eleve,
                     step=1.0
                 )
 
-                sous_total = (
-                    total_heures *
-                    tarif_horaire
-                )
-
                 forfait_utilise = 0.0
+
+                sous_total = (
+                    total_heures
+                    * tarif_horaire
+                )
 
             else:
 
                 forfait_mensuel = st.number_input(
                     "Forfait mensuel (€)",
                     min_value=0.0,
-                    value=float(forfait_mensuel),
+                    value=forfait_mensuel_eleve,
                     step=1.0
                 )
-
-                sous_total = forfait_mensuel
-
-                tarif_horaire = 0.0
 
                 forfait_utilise = (
                     forfait_mensuel
                 )
 
-            # ------------------------------------------------
-            # REMISE
-            # ------------------------------------------------
+                tarif_horaire = 0.0
+
+                sous_total = (
+                    forfait_mensuel
+                )
 
             remise = st.number_input(
                 "Remise exceptionnelle (€)",
@@ -2497,8 +2658,8 @@ elif menu == "🧾 Facturation":
             with col2:
 
                 st.metric(
-                    "Sous-total",
-                    f"{sous_total:.2f} €"
+                    "Heures",
+                    f"{total_heures:.2f} h"
                 )
 
             with col3:
@@ -2530,40 +2691,26 @@ elif menu == "🧾 Facturation":
                 )
 
             # ------------------------------------------------
-            # NUMÉRO DE FACTURE
+            # NUMÉRO FACTURE
             # ------------------------------------------------
 
-            # Aucun nom/prénom dans le numéro
+            numero_defaut = (
+                f"CH-"
+                f"{date.today().strftime('%Y%m%d')}-"
+                f"{eleve_id}"
+            )
+
             numero_facture = st.text_input(
                 "Numéro de facture",
-                value=(
-                    f"CH-"
-                    f"{date_debut.strftime('%Y%m%d')}-"
-                    f"{date_fin_inclusive.strftime('%Y%m%d')}"
+                value=numero_defaut,
+                help=(
+                    "Le numéro de facture ne contient "
+                    "pas le nom ou le prénom de l'élève."
                 )
             )
 
             # ------------------------------------------------
-            # BILAN COMPORTEMENTAL
-            # ------------------------------------------------
-
-            st.subheader(
-                "📊 Bilan comportemental"
-            )
-
-            bilan_auto = generer_bilan_comportemental(
-                df_eleve
-            )
-
-            st.text_area(
-                "Bilan automatique",
-                value=bilan_auto,
-                height=160,
-                disabled=True
-            )
-
-            # ------------------------------------------------
-            # OBSERVATION PÉDAGOGIQUE MODIFIABLE
+            # OBSERVATION PÉDAGOGIQUE
             # ------------------------------------------------
 
             st.subheader(
@@ -2577,49 +2724,29 @@ elif menu == "🧾 Facturation":
             )
 
             observation_pedagogique = st.text_area(
-                "Modifier ou compléter l'observation",
+                "Observation figurant sur la facture",
                 value=observation_auto,
-                height=180,
-                help=(
-                    "Tu peux modifier complètement "
-                    "le texte ou ajouter tes propres remarques."
-                )
+                height=140,
+                key="observation_facture"
+            )
+
+            st.caption(
+                "Tu peux modifier ou compléter librement "
+                "ce texte avant de générer la facture."
             )
 
             # ------------------------------------------------
-            # APERÇU / ENREGISTREMENT
+            # APERÇU
             # ------------------------------------------------
 
             st.subheader(
-                "🧾 Facture"
+                "👁️ Aperçu de la facture"
             )
 
-            st.info(
-                "L'aperçu ne crée pas encore la facture "
-                "dans Supabase."
-            )
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-
-                apercu = st.button(
-                    "👁️ Visualiser la facture",
-                    type="secondary"
-                )
-
-            with col2:
-
-                enregistrer = st.button(
-                    "💾 Enregistrer la facture",
-                    type="primary"
-                )
-
-            # =================================================
-            # APERÇU
-            # =================================================
-
-            if apercu or enregistrer:
+            if st.button(
+                "👁️ Afficher l'aperçu",
+                type="secondary"
+            ):
 
                 try:
 
@@ -2636,50 +2763,97 @@ elif menu == "🧾 Facturation":
                             statut,
                             date_paiement,
                             type_tarification,
-                            bilan_auto,
                             observation_pedagogique
                         )
                     )
 
                     st.session_state[
-                        "facture_pdf"
+                        "facture_pdf_apercu"
                     ] = pdf
 
                     st.session_state[
-                        "facture_nom"
+                        "facture_nom_apercu"
                     ] = (
                         f"Facture_"
                         f"{numero_facture}.pdf"
                     )
 
-                    if apercu:
+                except Exception as e:
 
-                        st.success(
-                            "👁️ Aperçu généré."
+                    st.error(
+                        "❌ Erreur génération aperçu."
+                    )
+
+                    st.code(str(e))
+
+            if (
+                "facture_pdf_apercu"
+                in st.session_state
+            ):
+
+                afficher_pdf(
+                    st.session_state[
+                        "facture_pdf_apercu"
+                    ]
+                )
+
+                st.download_button(
+                    "📥 Télécharger l'aperçu PDF",
+                    data=st.session_state[
+                        "facture_pdf_apercu"
+                    ],
+                    file_name=st.session_state[
+                        "facture_nom_apercu"
+                    ],
+                    mime="application/pdf"
+                )
+
+                st.divider()
+
+                # ------------------------------------------------
+                # ENREGISTREMENT
+                # ------------------------------------------------
+
+                st.subheader(
+                    "💾 Enregistrer la facture"
+                )
+
+                enregistrer_drive = st.checkbox(
+                    "☁️ Enregistrer également le PDF dans Google Drive",
+                    value=False
+                )
+
+                if st.button(
+                    "💾 Enregistrer la facture",
+                    type="primary"
+                ):
+
+                    try:
+
+                        pdf = st.session_state[
+                            "facture_pdf_apercu"
+                        ]
+
+                        nom_facture = (
+                            st.session_state[
+                                "facture_nom_apercu"
+                            ]
                         )
-
-                    # -----------------------------------------
-                    # ENREGISTREMENT
-                    # -----------------------------------------
-
-                    if enregistrer:
 
                         # Vérification doublon
-                        factures_existantes = (
-                            recuperer_factures()
-                        )
+                        anciennes = recuperer_factures()
 
                         doublon = False
 
-                        if not factures_existantes.empty:
+                        if not anciennes.empty:
 
                             if (
                                 "numero_facture"
-                                in factures_existantes.columns
+                                in anciennes.columns
                             ):
 
                                 doublon = (
-                                    factures_existantes[
+                                    anciennes[
                                         "numero_facture"
                                     ]
                                     .astype(str)
@@ -2694,9 +2868,7 @@ elif menu == "🧾 Facturation":
                         if doublon:
 
                             st.error(
-                                f"❌ La facture "
-                                f"{numero_facture} "
-                                "existe déjà."
+                                "❌ Ce numéro de facture existe déjà."
                             )
 
                         else:
@@ -2710,66 +2882,54 @@ elif menu == "🧾 Facturation":
                                 tarif_horaire,
                                 forfait_utilise,
                                 remise,
-                                montant_final,
+                                montant_total,
                                 statut,
-                                date_paiement,
-                                bilan_auto,
-                                observation_pedagogique
+                                date_paiement
                             )
 
                             st.success(
                                 "✅ Facture enregistrée dans Supabase."
                             )
 
-            # =================================================
-            # AFFICHAGE PDF
-            # =================================================
+                            # --------------------------------
+                            # DRIVE
+                            # --------------------------------
 
-            if "facture_pdf" in st.session_state:
+                            if enregistrer_drive:
 
-                st.download_button(
-                    "📥 Télécharger la facture PDF",
-                    data=st.session_state["facture_pdf"],
-                    file_name=st.session_state["facture_nom"],
-                    mime="application/pdf"
-                )
+                                try:
 
-                enregistrer_drive = st.checkbox(
-                    "☁️ Enregistrer cette facture dans Google Drive"
-                )
+                                    resultat_drive = (
+                                        sauvegarder_facture_pdf_dans_drive(
+                                            pdf,
+                                            nom_facture
+                                        )
+                                    )
 
-                if enregistrer_drive:
+                                    st.success(
+                                        "☁️ Facture "
+                                        f"{resultat_drive} "
+                                        "dans Google Drive."
+                                    )
 
-                    if st.button(
-                        "☁️ Enregistrer le PDF dans Google Drive"
-                    ):
+                                except Exception as e:
 
-                        try:
+                                    st.error(
+                                        "⚠️ La facture est enregistrée "
+                                        "dans Supabase mais pas dans "
+                                        "Google Drive."
+                                    )
 
-                            resultat_drive = (
-                                sauvegarder_facture_pdf_dans_drive(
-                                    st.session_state[
-                                        "facture_pdf"
-                                    ],
-                                    st.session_state[
-                                        "facture_nom"
-                                    ]
-                                )
-                            )
+                                    st.code(str(e))
 
-                            st.success(
-                                f"☁️ Facture {resultat_drive} "
-                                "dans Google Drive."
-                            )
+                    except Exception as e:
 
-                        except Exception as e:
+                        st.error(
+                            "❌ Erreur lors de "
+                            "l'enregistrement."
+                        )
 
-                            st.error(
-                                "⚠️ Impossible d'enregistrer "
-                                "la facture dans Google Drive."
-                            )
-
-                            st.code(str(e))
+                        st.code(str(e))
 
     # ========================================================
     # FACTURES
@@ -2812,6 +2972,44 @@ elif menu == "🧾 Facturation":
             st.divider()
 
             st.subheader(
+                "🔎 Rechercher une facture"
+            )
+
+            numero_recherche = st.text_input(
+                "Numéro de facture"
+            )
+
+            if numero_recherche.strip():
+
+                resultat = factures[
+                    factures[
+                        "numero_facture"
+                    ]
+                    .astype(str)
+                    .str.contains(
+                        numero_recherche.strip(),
+                        case=False,
+                        na=False
+                    )
+                ]
+
+                if resultat.empty:
+
+                    st.warning(
+                        "Aucune facture trouvée."
+                    )
+
+                else:
+
+                    st.dataframe(
+                        resultat,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+            st.divider()
+
+            st.subheader(
                 "🗑️ Supprimer une facture"
             )
 
@@ -2850,7 +3048,10 @@ elif menu == "🧾 Facturation":
                             supabase
                             .table("factures")
                             .delete()
-                            .eq("id", choix)
+                            .eq(
+                                "id",
+                                choix
+                            )
                             .execute()
                         )
 
@@ -2863,7 +3064,7 @@ elif menu == "🧾 Facturation":
                     except Exception as e:
 
                         st.error(
-                            "Erreur suppression facture."
+                            "❌ Erreur suppression."
                         )
 
                         st.code(str(e))
@@ -2902,7 +3103,9 @@ elif menu == "🧾 Facturation":
             else:
 
                 total_impaye = pd.to_numeric(
-                    impayees["montant_total"],
+                    impayees[
+                        "montant_total"
+                    ],
                     errors="coerce"
                 ).fillna(0).sum()
 
@@ -2980,7 +3183,9 @@ elif menu == "👨‍🎓 Élèves":
                 if c in df.columns
             ]
 
-            affichage = df[colonnes].copy()
+            affichage = df[
+                colonnes
+            ].copy()
 
             affichage = affichage.rename(
                 columns={
@@ -3032,7 +3237,7 @@ elif menu == "👨‍🎓 Élèves":
         if niveau_choix == "Autre":
 
             classe = st.text_input(
-                "✏️ Saisir le niveau / la classe"
+                "Niveau / classe"
             )
 
         else:
@@ -3071,20 +3276,22 @@ elif menu == "👨‍🎓 Élèves":
             CONTRATS
         )
 
-        contrat_autre = st.text_area(
+        contrat_precisions = st.text_area(
             "Précisions sur le contrat"
         )
 
-        if contrat == "Autre" and contrat_autre.strip():
+        if contrat == "Autre":
 
-            contrat_final = contrat_autre.strip()
+            contrat_final = (
+                contrat_precisions.strip()
+            )
 
-        elif contrat_autre.strip():
+        elif contrat_precisions.strip():
 
             contrat_final = (
                 contrat
                 + " — "
-                + contrat_autre.strip()
+                + contrat_precisions.strip()
             )
 
         else:
@@ -3105,7 +3312,7 @@ elif menu == "👨‍🎓 Élèves":
             elif not classe.strip():
 
                 st.error(
-                    "Le niveau / la classe est obligatoire."
+                    "Le niveau / classe est obligatoire."
                 )
 
             else:
@@ -3113,22 +3320,16 @@ elif menu == "👨‍🎓 Élèves":
                 donnees = {
                     "prenom":
                         prenom.strip(),
-
                     "nom":
                         nom.strip() or None,
-
                     "classe_actuelle":
                         classe.strip(),
-
                     "type_tarification":
                         type_tarification,
-
                     "tarif_horaire":
                         tarif_horaire,
-
                     "forfait_mensuel":
                         forfait_mensuel,
-
                     "contrat":
                         contrat_final
                 }
@@ -3151,7 +3352,7 @@ elif menu == "👨‍🎓 Élèves":
                 except Exception as e:
 
                     st.error(
-                        "Erreur ajout élève."
+                        "❌ Erreur ajout élève."
                     )
 
                     st.code(str(e))
@@ -3162,9 +3363,13 @@ elif menu == "👨‍🎓 Élèves":
 
     elif action == "✏️ Modifier un élève":
 
-        df = recuperer_eleves()
+        st.subheader(
+            "✏️ Modifier un élève"
+        )
 
-        if df.empty:
+        eleves = liste_eleves_avec_id()
+
+        if not eleves:
 
             st.info(
                 "Aucun élève."
@@ -3172,44 +3377,43 @@ elif menu == "👨‍🎓 Élèves":
 
         else:
 
-            choix = []
-
-            for _, ligne in df.iterrows():
-
-                choix.append(
-                    (
-                        int(ligne["id"]),
-                        nom_eleve_depuis_ligne(ligne)
-                    )
-                )
-
-            eleve_choisi = st.selectbox(
+            eleve_selection = st.selectbox(
                 "Élève",
-                choix,
+                eleves,
                 format_func=lambda x: x[1]
             )
 
-            id_eleve = eleve_choisi[0]
+            id_eleve = eleve_selection[0]
 
-            ligne = df[
-                df["id"] == id_eleve
-            ].iloc[0]
+            ligne = recuperer_eleve(
+                id_eleve
+            )
+
+            if ligne is None:
+
+                st.error(
+                    "Élève introuvable."
+                )
+
+                st.stop()
 
             prenom = st.text_input(
                 "Prénom",
                 value=str(
-                    ligne.get("prenom", "")
+                    ligne.get(
+                        "prenom",
+                        ""
+                    )
                 )
             )
 
             nom = st.text_input(
                 "Nom",
-                value=(
-                    str(ligne.get("nom", ""))
-                    if pd.notna(
-                        ligne.get("nom")
-                    )
-                    else ""
+                value=str(
+                    ligne.get(
+                        "nom",
+                        ""
+                    ) or ""
                 )
             )
 
@@ -3217,8 +3421,7 @@ elif menu == "👨‍🎓 Élèves":
                 ligne.get(
                     "classe_actuelle",
                     ""
-                )
-                or ""
+                ) or ""
             )
 
             if classe_actuelle in NIVEAUX:
@@ -3242,7 +3445,7 @@ elif menu == "👨‍🎓 Élèves":
             if niveau_choix == "Autre":
 
                 classe = st.text_input(
-                    "✏️ Saisir le niveau / la classe",
+                    "Niveau / classe",
                     value=(
                         classe_actuelle
                         if classe_actuelle not in NIVEAUX
@@ -3264,7 +3467,8 @@ elif menu == "👨‍🎓 Élèves":
                     1
                     if ligne.get(
                         "type_tarification"
-                    ) == "Forfait mensuel"
+                    )
+                    == "Forfait mensuel"
                     else 0
                 )
             )
@@ -3276,8 +3480,7 @@ elif menu == "👨‍🎓 Élèves":
                     ligne.get(
                         "tarif_horaire",
                         0
-                    )
-                    or 0
+                    ) or 0
                 ),
                 step=1.0
             )
@@ -3289,15 +3492,16 @@ elif menu == "👨‍🎓 Élèves":
                     ligne.get(
                         "forfait_mensuel",
                         0
-                    )
-                    or 0
+                    ) or 0
                 ),
                 step=1.0
             )
 
             contrat_actuel = str(
-                ligne.get("contrat", "")
-                or ""
+                ligne.get(
+                    "contrat",
+                    ""
+                ) or ""
             )
 
             contrat = st.selectbox(
@@ -3335,7 +3539,7 @@ elif menu == "👨‍🎓 Élèves":
                 elif not classe.strip():
 
                     st.error(
-                        "Le niveau / la classe est obligatoire."
+                        "Le niveau / classe est obligatoire."
                     )
 
                 else:
@@ -3361,22 +3565,16 @@ elif menu == "👨‍🎓 Élèves":
                     modifications = {
                         "prenom":
                             prenom.strip(),
-
                         "nom":
                             nom.strip() or None,
-
                         "classe_actuelle":
                             classe.strip(),
-
                         "type_tarification":
                             type_tarification,
-
                         "tarif_horaire":
                             tarif_horaire,
-
                         "forfait_mensuel":
                             forfait_mensuel,
-
                         "contrat":
                             contrat_final
                     }
@@ -3384,44 +3582,30 @@ elif menu == "👨‍🎓 Élèves":
                     try:
 
                         # IMPORTANT :
-                        # on modifie uniquement eleves.
-                        # On ne touche JAMAIS aux séances.
+                        # On ne touche PAS à la table seances.
+                        # Les séances sont liées par eleve_id.
+
                         (
                             supabase
                             .table("eleves")
-                            .update(modifications)
-                            .eq("id", id_eleve)
-                            .execute()
-                        )
-
-                        # Mise à jour du texte historique
-                        # dans les séances.
-                        #
-                        # Le eleve_id ne change absolument pas.
-                        #
-                        nouveau_nom = (
-                            f"{prenom.strip()} "
-                            f"{nom.strip()}".strip()
-                            if nom.strip()
-                            else prenom.strip()
-                        )
-
-                        (
-                            supabase
-                            .table("seances")
-                            .update({
-                                "eleve": nouveau_nom
-                            })
+                            .update(
+                                modifications
+                            )
                             .eq(
-                                "eleve_id",
+                                "id",
                                 id_eleve
                             )
                             .execute()
                         )
 
                         st.success(
-                            "✅ Élève modifié. "
-                            "Les séances ont été conservées."
+                            "✅ Élève modifié."
+                        )
+
+                        st.info(
+                            "Les séances existantes sont conservées "
+                            "car elles sont liées à l'identifiant "
+                            "de l'élève."
                         )
 
                         st.rerun()
@@ -3429,7 +3613,7 @@ elif menu == "👨‍🎓 Élèves":
                     except Exception as e:
 
                         st.error(
-                            "Erreur modification."
+                            "❌ Erreur modification."
                         )
 
                         st.code(str(e))
@@ -3440,9 +3624,13 @@ elif menu == "👨‍🎓 Élèves":
 
     else:
 
-        df = recuperer_eleves()
+        st.subheader(
+            "🗑️ Supprimer un élève"
+        )
 
-        if df.empty:
+        eleves = liste_eleves_avec_id()
+
+        if not eleves:
 
             st.info(
                 "Aucun élève."
@@ -3450,44 +3638,20 @@ elif menu == "👨‍🎓 Élèves":
 
         else:
 
-            choix = []
-
-            for _, ligne in df.iterrows():
-
-                choix.append(
-                    (
-                        int(ligne["id"]),
-                        nom_eleve_depuis_ligne(ligne)
-                    )
-                )
-
-            eleve = st.selectbox(
+            eleve_selection = st.selectbox(
                 "Élève",
-                choix,
+                eleves,
                 format_func=lambda x: x[1]
             )
 
-            id_eleve = eleve[0]
+            id_eleve = eleve_selection[0]
 
-            # Vérification des séances
-            df_seances = recuperer_seances_eleve(
-                id_eleve
+            st.warning(
+                "⚠️ La suppression de l'élève "
+                "ne doit être effectuée que si elle est voulue. "
+                "Les séances associées ne seront pas supprimées "
+                "automatiquement par cette application."
             )
-
-            if not df_seances.empty:
-
-                st.warning(
-                    f"⚠️ Cet élève possède "
-                    f"{len(df_seances)} séance(s)."
-                )
-
-                st.info(
-                    "Pour protéger l'historique, "
-                    "il faut d'abord supprimer "
-                    "ou conserver l'élève."
-                )
-
-                st.stop()
 
             confirmation = st.checkbox(
                 "Je confirme vouloir supprimer cet élève."
@@ -3512,7 +3676,10 @@ elif menu == "👨‍🎓 Élèves":
                             supabase
                             .table("eleves")
                             .delete()
-                            .eq("id", id_eleve)
+                            .eq(
+                                "id",
+                                id_eleve
+                            )
                             .execute()
                         )
 
@@ -3525,7 +3692,7 @@ elif menu == "👨‍🎓 Élèves":
                     except Exception as e:
 
                         st.error(
-                            "Erreur suppression."
+                            "❌ Erreur suppression."
                         )
 
                         st.code(str(e))
