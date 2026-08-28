@@ -6,13 +6,13 @@
 import streamlit as st
 import pandas as pd
 
-from datetime import date, datetime, time
+from datetime import date, time
 from io import BytesIO
 
 from supabase import create_client
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
@@ -21,8 +21,7 @@ from reportlab.platypus import (
     Paragraph,
     Spacer,
     Table,
-    TableStyle,
-    PageBreak
+    TableStyle
 )
 
 
@@ -67,20 +66,6 @@ CONTRATS = [
     "Autre"
 ]
 
-OBSERVATIONS_COMPORTEMENT = [
-    "Très bonne attitude",
-    "Bonne attitude",
-    "Attitude satisfaisante",
-    "Manque de concentration",
-    "Participation insuffisante",
-    "Manque de travail",
-    "Travail sérieux",
-    "Élève impliqué",
-    "Élève motivé",
-    "Progrès satisfaisants",
-    "Doit poursuivre ses efforts"
-]
-
 
 # ============================================================
 # SUPABASE
@@ -114,9 +99,7 @@ if not st.session_state["authentifie"]:
 
     st.title("📚 Cours Hercule")
 
-    st.subheader(
-        "🔐 Espace enseignant"
-    )
+    st.subheader("🔐 Espace enseignant")
 
     mot_de_passe = st.text_input(
         "Mot de passe",
@@ -286,9 +269,7 @@ def recuperer_seances():
         return pd.DataFrame()
 
 
-def recuperer_seances_eleve(
-    eleve_id
-):
+def recuperer_seances_eleve(eleve_id):
 
     try:
 
@@ -321,138 +302,10 @@ def recuperer_seances_eleve(
 
 
 # ============================================================
-# OBSERVATIONS COMPORTEMENTALES
+# GÉNÉRATION AUTOMATIQUE DE L'OBSERVATION PÉDAGOGIQUE
 # ============================================================
 
-def analyser_observations(df):
-
-    resultats = {}
-
-    if df.empty:
-
-        return resultats
-
-    if "observations" not in df.columns:
-
-        return resultats
-
-    observations = (
-        df["observations"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-    )
-
-    for observation in observations:
-
-        if not observation:
-
-            continue
-
-        texte = observation.lower()
-
-        if (
-            "très bonne" in texte
-            or "tres bonne" in texte
-        ):
-
-            categorie = "Très bonne attitude"
-
-        elif "bonne attitude" in texte:
-
-            categorie = "Bonne attitude"
-
-        elif (
-            "satisfaisante" in texte
-            or "satisfaisant" in texte
-        ):
-
-            categorie = "Attitude satisfaisante"
-
-        elif (
-            "concentration" in texte
-            or "concentrer" in texte
-        ):
-
-            categorie = "Manque de concentration"
-
-        elif (
-            "participation" in texte
-            and (
-                "insuffisante" in texte
-                or "faible" in texte
-            )
-        ):
-
-            categorie = "Participation insuffisante"
-
-        elif (
-            "travail sérieux" in texte
-            or "travail serieux" in texte
-        ):
-
-            categorie = "Travail sérieux"
-
-        elif (
-            "motivé" in texte
-            or "motive" in texte
-        ):
-
-            categorie = "Élève motivé"
-
-        elif (
-            "impliqué" in texte
-            or "implique" in texte
-        ):
-
-            categorie = "Élève impliqué"
-
-        elif (
-            "progrès" in texte
-            or "progres" in texte
-        ):
-
-            categorie = "Progrès satisfaisants"
-
-        elif (
-            "effort" in texte
-            or "efforts" in texte
-        ):
-
-            categorie = "Doit poursuivre ses efforts"
-
-        elif (
-            "travail" in texte
-            and (
-                "manque" in texte
-                or "insuffisant" in texte
-            )
-        ):
-
-            categorie = "Manque de travail"
-
-        else:
-
-            categorie = observation
-
-        resultats[categorie] = (
-            resultats.get(
-                categorie,
-                0
-            )
-            + 1
-        )
-
-    return resultats
-
-
-# ============================================================
-# GÉNÉRATION AUTOMATIQUE OBSERVATION
-# ============================================================
-
-def generer_observation_automatique(
-    df
-):
+def generer_observation_automatique(df):
 
     if df.empty:
 
@@ -478,174 +331,230 @@ def generer_observation_automatique(
                     valeur
                 )
 
+    # --------------------------------------------------------
+    # Aucune observation saisie
+    # --------------------------------------------------------
+
     if not observations:
 
         return (
             "Le suivi pédagogique se poursuit "
-            "régulièrement."
+            "régulièrement. Les séances permettent "
+            "de consolider les acquis et de poursuivre "
+            "les apprentissages."
         )
 
-    bilan = analyser_observations(
-        df
-    )
+    # --------------------------------------------------------
+    # Analyse simple des observations
+    # --------------------------------------------------------
 
-    if not bilan:
-
-        return (
-            "Le suivi pédagogique est assuré "
-            "régulièrement."
-        )
+    texte_global = " ".join(
+        observations
+    ).lower()
 
     positif = 0
     negatif = 0
+    progres = 0
+    travail = 0
+    concentration = 0
+    participation = 0
 
-    for categorie, nombre in bilan.items():
+    mots_positifs = [
+        "très bien",
+        "tres bien",
+        "bien",
+        "bonne",
+        "sérieux",
+        "serieux",
+        "motivé",
+        "motive",
+        "impliqué",
+        "implique",
+        "progrès",
+        "progres",
+        "satisfaisant",
+        "réussite",
+        "reussi",
+        "réussit"
+    ]
 
-        texte = categorie.lower()
+    mots_negatifs = [
+        "difficulté",
+        "difficultés",
+        "difficulte",
+        "difficultes",
+        "manque",
+        "insuffisant",
+        "insuffisante",
+        "erreur",
+        "erreurs",
+        "fragile",
+        "à revoir",
+        "a revoir"
+    ]
 
-        if any(
-            mot in texte
-            for mot in [
-                "bonne",
-                "très",
-                "travail sérieux",
-                "impliqué",
-                "motivé",
-                "progrès",
-                "satisfaisant"
-            ]
-        ):
+    mots_progres = [
+        "progrès",
+        "progres",
+        "amélioration",
+        "amelioration",
+        "progresser",
+        "avance"
+    ]
 
-            positif += nombre
+    mots_travail = [
+        "travail",
+        "exercice",
+        "exercices",
+        "révision",
+        "revision",
+        "méthode",
+        "methode"
+    ]
 
-        if any(
-            mot in texte
-            for mot in [
-                "manque",
-                "insuffisant",
-                "concentration",
-                "effort"
-            ]
-        ):
+    mots_concentration = [
+        "concentration",
+        "concentré",
+        "concentre",
+        "attention"
+    ]
 
-            negatif += nombre
+    mots_participation = [
+        "participation",
+        "participe",
+        "participatif",
+        "question",
+        "questions"
+    ]
 
-    if positif > 0 and negatif == 0:
+    for mot in mots_positifs:
 
-        return (
-            "L'élève présente une attitude positive "
-            "et un investissement satisfaisant dans "
-            "les séances. Le travail est réalisé "
-            "avec sérieux et les progrès sont "
-            "encourageants."
-        )
+        if mot in texte_global:
 
-    if negatif > positif:
+            positif += 1
 
-        return (
-            "Le suivi met en évidence certains "
-            "points nécessitant encore des efforts, "
-            "notamment en matière de concentration "
-            "et/ou de travail personnel. "
-            "Une régularité accrue permettra de "
-            "consolider les progrès."
-        )
+    for mot in mots_negatifs:
 
-    return (
-        "L'élève poursuit son travail de manière "
-        "régulière. Les séances permettent de "
-        "consolider les acquis et de poursuivre "
-        "les progrès."
-    )
+        if mot in texte_global:
 
+            negatif += 1
 
-# ============================================================
-# OBSERVATION COMPORTEMENT POUR FACTURE
-# ============================================================
+    for mot in mots_progres:
 
-def generer_observation_comportement(
-    df
-):
+        if mot in texte_global:
 
-    if df.empty:
+            progres += 1
 
-        return (
-            "Aucune observation comportementale "
-            "disponible pour cette période."
-        )
+    for mot in mots_travail:
 
-    bilan = analyser_observations(
-        df
-    )
+        if mot in texte_global:
 
-    if not bilan:
+            travail += 1
 
-        return (
-            "Le comportement et l'attitude de "
-            "l'élève sont suivis régulièrement "
-            "dans le cadre des séances."
-        )
+    for mot in mots_concentration:
 
-    positifs = []
-    points_attention = []
+        if mot in texte_global:
 
-    for categorie, nombre in bilan.items():
+            concentration += 1
 
-        texte = categorie.lower()
+    for mot in mots_participation:
 
-        if any(
-            mot in texte
-            for mot in [
-                "bonne",
-                "très bonne",
-                "travail sérieux",
-                "impliqué",
-                "motivé",
-                "progrès"
-            ]
-        ):
+        if mot in texte_global:
 
-            positifs.append(
-                categorie
-            )
+            participation += 1
 
-        elif any(
-            mot in texte
-            for mot in [
-                "manque",
-                "insuffisant",
-                "concentration",
-                "effort"
-            ]
-        ):
-
-            points_attention.append(
-                categorie
-            )
+    # --------------------------------------------------------
+    # Construction de l'observation
+    # --------------------------------------------------------
 
     phrases = []
 
-    if positifs:
+    # Cas très positif
+
+    if positif >= 2 and negatif == 0:
 
         phrases.append(
-            "L'attitude de l'élève est globalement "
-            "positive et satisfaisante."
+            "L'élève présente une attitude positive "
+            "et un investissement satisfaisant dans "
+            "les séances."
         )
 
-    if points_attention:
+    elif positif > negatif:
 
         phrases.append(
-            "Une attention particulière doit encore "
-            "être portée à la concentration, à la "
-            "participation et/ou à la régularité "
-            "du travail."
+            "L'élève s'investit de manière satisfaisante "
+            "dans les séances et poursuit progressivement "
+            "ses apprentissages."
         )
 
-    if not phrases:
+    elif negatif > positif:
 
         phrases.append(
-            "Le comportement de l'élève est suivi "
-            "régulièrement dans le cadre des séances."
+            "L'élève poursuit ses apprentissages, "
+            "mais certains points nécessitent encore "
+            "un travail régulier."
+        )
+
+    else:
+
+        phrases.append(
+            "L'élève poursuit son travail de manière "
+            "régulière dans le cadre des séances."
+        )
+
+    # --------------------------------------------------------
+    # Progrès
+    # --------------------------------------------------------
+
+    if progres > 0:
+
+        phrases.append(
+            "Des progrès sont observés au fil des séances."
+        )
+
+    # --------------------------------------------------------
+    # Travail
+    # --------------------------------------------------------
+
+    if travail > 0:
+
+        phrases.append(
+            "Le travail réalisé permet de consolider "
+            "les notions étudiées."
+        )
+
+    # --------------------------------------------------------
+    # Concentration
+    # --------------------------------------------------------
+
+    if concentration > 0:
+
+        phrases.append(
+            "La concentration reste un point à maintenir "
+            "afin de favoriser les apprentissages."
+        )
+
+    # --------------------------------------------------------
+    # Participation
+    # --------------------------------------------------------
+
+    if participation > 0:
+
+        phrases.append(
+            "La participation pendant les séances "
+            "contribue au suivi des apprentissages."
+        )
+
+    # --------------------------------------------------------
+    # Difficultés
+    # --------------------------------------------------------
+
+    if negatif > 0:
+
+        phrases.append(
+            "Les difficultés identifiées font l'objet "
+            "d'un travail spécifique afin de consolider "
+            "les acquis."
         )
 
     return " ".join(
@@ -698,7 +607,7 @@ def enregistrer_facture(
     statut,
     date_paiement,
     niveau,
-    observation_comportement
+    observation_pedagogique
 ):
 
     donnees = {
@@ -743,8 +652,8 @@ def enregistrer_facture(
         "classe":
             niveau,
 
-        "observation_comportement":
-            observation_comportement,
+        "observation_pedagogique":
+            observation_pedagogique,
 
         "date_facture":
             date.today().isoformat()
@@ -774,8 +683,7 @@ def generer_facture_pdf(
     statut,
     date_paiement,
     type_tarification,
-    observation_pedagogique,
-    observation_comportement
+    observation_pedagogique
 ):
 
     buffer = BytesIO()
@@ -824,9 +732,9 @@ def generer_facture_pdf(
 
     elements = []
 
-    # --------------------------------------------------------
+    # ========================================================
     # EN-TÊTE
-    # --------------------------------------------------------
+    # ========================================================
 
     elements.append(
         Paragraph(
@@ -848,9 +756,9 @@ def generer_facture_pdf(
         )
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # INFORMATIONS FACTURE
-    # --------------------------------------------------------
+    # ========================================================
 
     infos = [
 
@@ -871,9 +779,7 @@ def generer_facture_pdf(
                 normal
             ),
             Paragraph(
-                date.today().strftime(
-                    "%d/%m/%Y"
-                ),
+                date.today().strftime("%d/%m/%Y"),
                 normal
             )
         ],
@@ -967,15 +873,12 @@ def generer_facture_pdf(
     )
 
     elements.append(
-        Spacer(
-            1,
-            20
-        )
+        Spacer(1, 20)
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # DÉTAIL DES SÉANCES
-    # --------------------------------------------------------
+    # ========================================================
 
     elements.append(
         Paragraph(
@@ -1152,15 +1055,12 @@ def generer_facture_pdf(
     )
 
     elements.append(
-        Spacer(
-            1,
-            20
-        )
+        Spacer(1, 20)
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # TARIFICATION
-    # --------------------------------------------------------
+    # ========================================================
 
     total_heures = (
         total_minutes / 60
@@ -1175,9 +1075,7 @@ def generer_facture_pdf(
 
     else:
 
-        sous_total = (
-            forfait_utilise
-        )
+        sous_total = forfait_utilise
 
     montant_total = max(
         0,
@@ -1350,15 +1248,12 @@ def generer_facture_pdf(
     )
 
     elements.append(
-        Spacer(
-            1,
-            20
-        )
+        Spacer(1, 20)
     )
 
-    # --------------------------------------------------------
-    # STATUT
-    # --------------------------------------------------------
+    # ========================================================
+    # PAIEMENT
+    # ========================================================
 
     elements.append(
         Paragraph(
@@ -1374,8 +1269,7 @@ def generer_facture_pdf(
     if date_paiement:
 
         texte_paiement += (
-            " — "
-            f"Date de paiement : "
+            " — Date de paiement : "
             f"{date_paiement.strftime('%d/%m/%Y')}"
         )
 
@@ -1387,43 +1281,12 @@ def generer_facture_pdf(
     )
 
     elements.append(
-        Spacer(
-            1,
-            20
-        )
+        Spacer(1, 20)
     )
 
-    # --------------------------------------------------------
-    # OBSERVATION COMPORTEMENTALE
-    # --------------------------------------------------------
-
-    elements.append(
-        Paragraph(
-            "Observation comportementale",
-            sous_titre
-        )
-    )
-
-    elements.append(
-        Paragraph(
-            observation_comportement.replace(
-                "\n",
-                "<br/>"
-            ),
-            normal
-        )
-    )
-
-    elements.append(
-        Spacer(
-            1,
-            15
-        )
-    )
-
-    # --------------------------------------------------------
+    # ========================================================
     # OBSERVATION PÉDAGOGIQUE
-    # --------------------------------------------------------
+    # ========================================================
 
     elements.append(
         Paragraph(
@@ -1443,10 +1306,7 @@ def generer_facture_pdf(
     )
 
     elements.append(
-        Spacer(
-            1,
-            20
-        )
+        Spacer(1, 20)
     )
 
     elements.append(
@@ -1506,9 +1366,6 @@ def afficher_pdf(pdf_bytes):
 
 def synchroniser_drive():
 
-    # À remplacer par ta fonction existante
-    # de synchronisation Google Drive.
-
     return (
         True,
         "Synchronisation effectuée."
@@ -1519,9 +1376,6 @@ def sauvegarder_facture_pdf_dans_drive(
     pdf,
     nom_facture
 ):
-
-    # À remplacer par ta fonction existante
-    # Google Drive si elle est déjà configurée.
 
     return nom_facture
 
@@ -1637,7 +1491,7 @@ if menu == "📚 Gestion des séances":
             )
 
             observations = st.text_area(
-                "Observations"
+                "Observations pédagogiques"
             )
 
             if st.button(
@@ -1655,9 +1509,7 @@ if menu == "📚 Gestion des séances":
                     + heure_fin.minute
                 )
 
-                duree = (
-                    fin - debut
-                )
+                duree = fin - debut
 
                 if duree <= 0:
 
@@ -1887,7 +1739,7 @@ if menu == "📚 Gestion des séances":
             )
 
             observations = st.text_area(
-                "Observations",
+                "Observations pédagogiques",
                 value=str(
                     ligne.get(
                         "observations",
@@ -1911,9 +1763,7 @@ if menu == "📚 Gestion des séances":
                     + heure_fin.minute
                 )
 
-                duree = (
-                    fin - debut
-                )
+                duree = fin - debut
 
                 if duree <= 0:
 
@@ -1945,16 +1795,16 @@ if menu == "📚 Gestion des séances":
                         mode,
 
                     "disciplines":
-                        disciplines,
+                        disciplines.strip(),
 
                     "contenu":
-                        contenu,
+                        contenu.strip(),
 
                     "travail":
-                        travail,
+                        travail.strip(),
 
                     "observations":
-                        observations
+                        observations.strip()
                 }
 
                 try:
@@ -2189,7 +2039,7 @@ elif menu == "📖 Cahier de texte":
                 )
 
                 st.write(
-                    f"**Observations :** "
+                    f"**Observations pédagogiques :** "
                     f"{ligne.get('observations','')}"
                 )
 
@@ -2264,30 +2114,22 @@ elif menu == "📊 Bilan":
                     f"{total_minutes / 60:.2f} h"
                 )
 
-            st.subheader(
-                "📊 Observations"
-            )
-
-            bilan = analyser_observations(
-                df_eleve
-            )
-
-            for observation, nombre in bilan.items():
-
-                st.write(
-                    f"**{observation} :** "
-                    f"{nombre} séance(s) sur "
-                    f"{len(df_eleve)}"
-                )
+            # ------------------------------------------------
+            # OBSERVATION AUTOMATIQUE
+            # ------------------------------------------------
 
             st.subheader(
-                "📝 Observation automatique"
+                "📝 Observation pédagogique automatique"
             )
 
-            st.info(
+            observation_auto = (
                 generer_observation_automatique(
                     df_eleve
                 )
+            )
+
+            st.info(
+                observation_auto
             )
 
             st.dataframe(
@@ -2343,10 +2185,6 @@ elif menu == "🧾 Facturation":
 
             eleve = eleve_selection[1]
 
-            # ------------------------------------------------
-            # RÉCUPÉRATION DIRECTE DE LA FICHE ÉLÈVE
-            # ------------------------------------------------
-
             informations_eleve = recuperer_eleve(
                 eleve_id
             )
@@ -2360,7 +2198,7 @@ elif menu == "🧾 Facturation":
                 st.stop()
 
             # =================================================
-            # CLASSE ACTUELLE
+            # CLASSE
             # =================================================
 
             classe_actuelle = (
@@ -2447,9 +2285,7 @@ elif menu == "🧾 Facturation":
 
                 date_fin_inclusive = (
                     date_fin
-                    - pd.Timedelta(
-                        days=1
-                    )
+                    - pd.Timedelta(days=1)
                 )
 
             else:
@@ -2474,10 +2310,7 @@ elif menu == "🧾 Facturation":
                         date.today()
                     )
 
-                if (
-                    date_fin_inclusive
-                    < date_debut
-                ):
+                if date_fin_inclusive < date_debut:
 
                     st.error(
                         "La date de fin est incorrecte."
@@ -2562,17 +2395,11 @@ elif menu == "🧾 Facturation":
             )
 
             # =================================================
-            # OBSERVATIONS AUTOMATIQUES
+            # OBSERVATION PÉDAGOGIQUE AUTOMATIQUE
             # =================================================
 
             observation_auto = (
                 generer_observation_automatique(
-                    df_eleve
-                )
-            )
-
-            observation_comportement = (
-                generer_observation_comportement(
                     df_eleve
                 )
             )
@@ -2737,26 +2564,16 @@ elif menu == "🧾 Facturation":
                 "📝 Observation pédagogique"
             )
 
+            st.caption(
+                "L'observation est générée automatiquement "
+                "à partir des observations des séances."
+            )
+
             observation_pedagogique = st.text_area(
                 "Observation figurant sur la facture",
                 value=observation_auto,
-                height=130,
+                height=150,
                 key="observation_facture"
-            )
-
-            # =================================================
-            # OBSERVATION COMPORTEMENT
-            # =================================================
-
-            st.subheader(
-                "🧑‍🎓 Observation comportementale"
-            )
-
-            st.text_area(
-                "Observation comportementale automatique",
-                value=observation_comportement,
-                height=100,
-                disabled=True
             )
 
             # =================================================
@@ -2787,8 +2604,7 @@ elif menu == "🧾 Facturation":
                             statut,
                             date_paiement,
                             type_tarification,
-                            observation_pedagogique,
-                            observation_comportement
+                            observation_pedagogique
                         )
                     )
 
@@ -2802,14 +2618,6 @@ elif menu == "🧾 Facturation":
                         f"Facture_"
                         f"{numero_facture}.pdf"
                     )
-
-                    st.session_state[
-                        "facture_niveau"
-                    ] = classe_actuelle
-
-                    st.session_state[
-                        "facture_observation_comportement"
-                    ] = observation_comportement
 
                 except Exception as e:
 
@@ -2920,7 +2728,7 @@ elif menu == "🧾 Facturation":
                                 statut,
                                 date_paiement,
                                 classe_actuelle,
-                                observation_comportement
+                                observation_pedagogique
                             )
 
                             st.success(
@@ -3238,29 +3046,14 @@ elif menu == "👨‍🎓 Élèves":
 
             affichage = affichage.rename(
                 columns={
-                    "id":
-                        "ID",
-
-                    "prenom":
-                        "Prénom",
-
-                    "nom":
-                        "Nom",
-
-                    "classe_actuelle":
-                        "Niveau / Classe",
-
-                    "type_tarification":
-                        "Tarification",
-
-                    "tarif_horaire":
-                        "Tarif horaire",
-
-                    "forfait_mensuel":
-                        "Forfait mensuel",
-
-                    "contrat":
-                        "Contrat"
+                    "id": "ID",
+                    "prenom": "Prénom",
+                    "nom": "Nom",
+                    "classe_actuelle": "Niveau / Classe",
+                    "type_tarification": "Tarification",
+                    "tarif_horaire": "Tarif horaire",
+                    "forfait_mensuel": "Forfait mensuel",
+                    "contrat": "Contrat"
                 }
             )
 
@@ -3577,7 +3370,7 @@ elif menu == "👨‍🎓 Élèves":
                 or ""
             )
 
-            contrat = st.selectbox(
+            st.selectbox(
                 "Contrat / modalités",
                 CONTRATS,
                 index=(
@@ -3586,8 +3379,13 @@ elif menu == "👨‍🎓 Élèves":
                     )
                     if contrat_actuel in CONTRATS
                     else 0
-                )
+                ),
+                key="contrat_modification"
             )
+
+            contrat = st.session_state[
+                "contrat_modification"
+            ]
 
             contrat_precisions = st.text_area(
                 "Précisions contrat",
