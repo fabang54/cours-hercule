@@ -2628,17 +2628,17 @@ elif menu == "🧾 Facturation":
         "🧾 Facturation"
     )
 
-  sous_menu = st.radio(
-    "Facturation",
-    [
-        "🧾 Nouvelle facture",
-        "📋 Factures",
-        "🔴 Factures impayées",
-        "✏️ Modifier une facture",
-        "🗑️ Supprimer une facture"
-    ],
-    horizontal=True
-)
+    sous_menu = st.radio(
+        "Facturation",
+        [
+            "➕ Nouvelle facture",
+            "✏️ Modifier une facture",
+            "🗑️ Supprimer une facture",
+            "📋 Factures",
+            "🔴 Factures impayées"
+        ],
+        horizontal=True
+    )
 
     # ========================================================
     # NOUVELLE FACTURE
