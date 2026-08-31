@@ -8,6 +8,8 @@ import pandas as pd
 
 from datetime import date, time
 from io import BytesIO
+import math
+import html
 
 from supabase import create_client
 
@@ -91,14 +93,12 @@ supabase = initialiser_supabase()
 # ============================================================
 
 if "authentifie" not in st.session_state:
-
     st.session_state["authentifie"] = False
 
 
 if not st.session_state["authentifie"]:
 
     st.title("📚 Cours Hercule")
-
     st.subheader("🔐 Espace enseignant")
 
     mot_de_passe = st.text_input(
@@ -114,7 +114,6 @@ if not st.session_state["authentifie"]:
         if mot_de_passe == st.secrets["mot_de_passe"]:
 
             st.session_state["authentifie"] = True
-
             st.rerun()
 
         else:
@@ -169,7 +168,6 @@ def recuperer_eleve(id_eleve):
         )
 
         if resultat.data:
-
             return resultat.data[0]
 
         return None
@@ -188,7 +186,6 @@ def liste_eleves_avec_id():
     df = recuperer_eleves()
 
     if df.empty:
-
         return []
 
     resultat = []
@@ -228,7 +225,6 @@ def nom_eleve_depuis_id(id_eleve):
     )
 
     if eleve is None:
-
         return "Élève inconnu"
 
     return (
@@ -302,6 +298,52 @@ def recuperer_seances_eleve(eleve_id):
 
 
 # ============================================================
+# OUTILS DURÉE
+# ============================================================
+
+def formater_duree(minutes):
+
+    try:
+        minutes = int(round(float(minutes)))
+    except Exception:
+        minutes = 0
+
+    heures = minutes // 60
+    minutes_restantes = minutes % 60
+
+    if heures > 0:
+        return f"{heures}h{minutes_restantes:02d}min"
+
+    return f"{minutes_restantes}min"
+
+
+def heures_arrondies_pour_facturation(total_minutes):
+
+    """
+    Pour la tarification horaire :
+    toute heure commencée est facturée.
+
+    Exemple :
+    1h01 -> 2 h
+    1h30 -> 2 h
+    1h59 -> 2 h
+    2h00 -> 2 h
+    """
+
+    try:
+        total_minutes = float(total_minutes)
+    except Exception:
+        return 0
+
+    if total_minutes <= 0:
+        return 0
+
+    return math.ceil(
+        total_minutes / 60
+    )
+
+
+# ============================================================
 # GÉNÉRATION AUTOMATIQUE DE L'OBSERVATION PÉDAGOGIQUE
 # ============================================================
 
@@ -326,14 +368,7 @@ def generer_observation_automatique(df):
         ):
 
             if valeur:
-
-                observations.append(
-                    valeur
-                )
-
-    # --------------------------------------------------------
-    # Aucune observation saisie
-    # --------------------------------------------------------
+                observations.append(valeur)
 
     if not observations:
 
@@ -343,10 +378,6 @@ def generer_observation_automatique(df):
             "de consolider les acquis et de poursuivre "
             "les apprentissages."
         )
-
-    # --------------------------------------------------------
-    # Analyse simple des observations
-    # --------------------------------------------------------
 
     texte_global = " ".join(
         observations
@@ -364,18 +395,21 @@ def generer_observation_automatique(df):
         "tres bien",
         "bien",
         "bonne",
+        "bon",
         "sérieux",
         "serieux",
         "motivé",
         "motive",
         "impliqué",
         "implique",
-        "progrès",
-        "progres",
         "satisfaisant",
+        "satisfaisante",
         "réussite",
+        "reussite",
+        "réussi",
         "reussi",
-        "réussit"
+        "réussit",
+        "reussit"
     ]
 
     mots_negatifs = [
@@ -399,7 +433,9 @@ def generer_observation_automatique(df):
         "amélioration",
         "amelioration",
         "progresser",
-        "avance"
+        "avance",
+        "avancé",
+        "avancee"
     ]
 
     mots_travail = [
@@ -416,60 +452,45 @@ def generer_observation_automatique(df):
         "concentration",
         "concentré",
         "concentre",
-        "attention"
+        "attention",
+        "attentif",
+        "attentive"
     ]
 
     mots_participation = [
         "participation",
         "participe",
         "participatif",
+        "participative",
         "question",
         "questions"
     ]
 
     for mot in mots_positifs:
-
         if mot in texte_global:
-
             positif += 1
 
     for mot in mots_negatifs:
-
         if mot in texte_global:
-
             negatif += 1
 
     for mot in mots_progres:
-
         if mot in texte_global:
-
             progres += 1
 
     for mot in mots_travail:
-
         if mot in texte_global:
-
             travail += 1
 
     for mot in mots_concentration:
-
         if mot in texte_global:
-
             concentration += 1
 
     for mot in mots_participation:
-
         if mot in texte_global:
-
             participation += 1
 
-    # --------------------------------------------------------
-    # Construction de l'observation
-    # --------------------------------------------------------
-
     phrases = []
-
-    # Cas très positif
 
     if positif >= 2 and negatif == 0:
 
@@ -502,19 +523,11 @@ def generer_observation_automatique(df):
             "régulière dans le cadre des séances."
         )
 
-    # --------------------------------------------------------
-    # Progrès
-    # --------------------------------------------------------
-
     if progres > 0:
 
         phrases.append(
             "Des progrès sont observés au fil des séances."
         )
-
-    # --------------------------------------------------------
-    # Travail
-    # --------------------------------------------------------
 
     if travail > 0:
 
@@ -523,20 +536,12 @@ def generer_observation_automatique(df):
             "les notions étudiées."
         )
 
-    # --------------------------------------------------------
-    # Concentration
-    # --------------------------------------------------------
-
     if concentration > 0:
 
         phrases.append(
-            "La concentration reste un point à maintenir "
-            "afin de favoriser les apprentissages."
+            "L'attention et la concentration sont "
+            "des éléments favorables aux apprentissages."
         )
-
-    # --------------------------------------------------------
-    # Participation
-    # --------------------------------------------------------
 
     if participation > 0:
 
@@ -544,10 +549,6 @@ def generer_observation_automatique(df):
             "La participation pendant les séances "
             "contribue au suivi des apprentissages."
         )
-
-    # --------------------------------------------------------
-    # Difficultés
-    # --------------------------------------------------------
 
     if negatif > 0:
 
@@ -560,6 +561,103 @@ def generer_observation_automatique(df):
     return " ".join(
         phrases
     )
+
+
+# ============================================================
+# BILAN COMPORTEMENTAL AUTOMATIQUE
+# ============================================================
+
+def calculer_bilan_comportemental(df):
+
+    total = len(df)
+
+    resultats = {
+        "Attentif": 0,
+        "Concentration satisfaisante": 0,
+        "Bonne implication": 0,
+        "Élève fatigué": 0,
+        "Besoin d'accompagnement": 0
+    }
+
+    if total == 0:
+        return resultats
+
+    if "observations" not in df.columns:
+        return resultats
+
+    for valeur in (
+        df["observations"]
+        .fillna("")
+        .astype(str)
+        .str.lower()
+    ):
+
+        if any(
+            mot in valeur
+            for mot in [
+                "attentif",
+                "attentive",
+                "attention"
+            ]
+        ):
+            resultats["Attentif"] += 1
+
+        if any(
+            mot in valeur
+            for mot in [
+                "concentration satisfaisante",
+                "bonne concentration",
+                "bien concentré",
+                "bien concentre"
+            ]
+        ):
+            resultats[
+                "Concentration satisfaisante"
+            ] += 1
+
+        if any(
+            mot in valeur
+            for mot in [
+                "bonne implication",
+                "impliqué",
+                "implique",
+                "bonne participation",
+                "motivé",
+                "motive"
+            ]
+        ):
+            resultats[
+                "Bonne implication"
+            ] += 1
+
+        if any(
+            mot in valeur
+            for mot in [
+                "fatigué",
+                "fatiguee",
+                "fatiguée",
+                "fatigue"
+            ]
+        ):
+            resultats[
+                "Élève fatigué"
+            ] += 1
+
+        if any(
+            mot in valeur
+            for mot in [
+                "besoin d'accompagnement",
+                "besoin d aide",
+                "besoin d'aide",
+                "accompagnement nécessaire",
+                "accompagnement necessaire"
+            ]
+        ):
+            resultats[
+                "Besoin d'accompagnement"
+            ] += 1
+
+    return resultats
 
 
 # ============================================================
@@ -691,43 +789,67 @@ def generer_facture_pdf(
     document = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        rightMargin=1.5 * cm,
-        leftMargin=1.5 * cm,
-        topMargin=1.5 * cm,
-        bottomMargin=1.5 * cm
+        rightMargin=1.4 * cm,
+        leftMargin=1.4 * cm,
+        topMargin=1.3 * cm,
+        bottomMargin=1.3 * cm
     )
 
     styles = getSampleStyleSheet()
 
     titre = ParagraphStyle(
-        "Titre",
+        "TitreFacture",
         parent=styles["Heading1"],
         fontSize=20,
         leading=24,
         alignment=TA_CENTER,
-        spaceAfter=15
+        spaceAfter=4
     )
 
     sous_titre = ParagraphStyle(
-        "SousTitre",
+        "SousTitreFacture",
+        parent=styles["Normal"],
+        fontSize=10,
+        leading=13,
+        alignment=TA_CENTER,
+        spaceAfter=16
+    )
+
+    section = ParagraphStyle(
+        "SectionFacture",
         parent=styles["Heading2"],
-        fontSize=12,
-        leading=15,
-        spaceAfter=8
+        fontSize=11,
+        leading=14,
+        spaceBefore=4,
+        spaceAfter=7
     )
 
     normal = ParagraphStyle(
-        "NormalCustom",
+        "NormalFacture",
         parent=styles["Normal"],
-        fontSize=9.5,
-        leading=13
+        fontSize=9.2,
+        leading=12
     )
 
     petit = ParagraphStyle(
-        "Petit",
+        "PetitFacture",
         parent=styles["Normal"],
-        fontSize=8,
-        leading=11
+        fontSize=7.8,
+        leading=10
+    )
+
+    total_style = ParagraphStyle(
+        "TotalFacture",
+        parent=styles["Normal"],
+        fontSize=11,
+        leading=14
+    )
+
+    observation_style = ParagraphStyle(
+        "ObservationFacture",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=13
     )
 
     elements = []
@@ -738,21 +860,15 @@ def generer_facture_pdf(
 
     elements.append(
         Paragraph(
-            "COURS HERCULE",
+            "<b>COURS HERCULE</b>",
             titre
         )
     )
 
     elements.append(
         Paragraph(
-            "Cours particuliers",
-            ParagraphStyle(
-                "SousTitreCentre",
-                parent=normal,
-                alignment=TA_CENTER,
-                fontSize=11,
-                spaceAfter=20
-            )
+            "FACTURE",
+            sous_titre
         )
     )
 
@@ -763,21 +879,33 @@ def generer_facture_pdf(
     infos = [
 
         [
+            Paragraph("<b>Facture n°</b>", normal),
             Paragraph(
-                "<b>Facture n°</b>",
-                normal
-            ),
-            Paragraph(
-                str(numero_facture),
+                html.escape(str(numero_facture)),
                 normal
             )
         ],
 
         [
+            Paragraph("<b>Élève</b>", normal),
             Paragraph(
-                "<b>Date</b>",
+                html.escape(str(eleve)),
                 normal
-            ),
+            )
+        ],
+
+        [
+            Paragraph("<b>Niveau / classe</b>", normal),
+            Paragraph(
+                html.escape(
+                    str(niveau or "Non renseigné")
+                ),
+                normal
+            )
+        ],
+
+        [
+            Paragraph("<b>Date de facture</b>", normal),
             Paragraph(
                 date.today().strftime("%d/%m/%Y"),
                 normal
@@ -785,34 +913,9 @@ def generer_facture_pdf(
         ],
 
         [
+            Paragraph("<b>Période</b>", normal),
             Paragraph(
-                "<b>Période</b>",
-                normal
-            ),
-            Paragraph(
-                periode,
-                normal
-            )
-        ],
-
-        [
-            Paragraph(
-                "<b>Élève</b>",
-                normal
-            ),
-            Paragraph(
-                eleve,
-                normal
-            )
-        ],
-
-        [
-            Paragraph(
-                "<b>Classe</b>",
-                normal
-            ),
-            Paragraph(
-                niveau or "Non renseignée",
+                html.escape(str(periode)),
                 normal
             )
         ]
@@ -821,8 +924,8 @@ def generer_facture_pdf(
     table_infos = Table(
         infos,
         colWidths=[
-            4 * cm,
-            12 * cm
+            4.3 * cm,
+            11.7 * cm
         ]
     )
 
@@ -833,7 +936,7 @@ def generer_facture_pdf(
                     "GRID",
                     (0, 0),
                     (-1, -1),
-                    0.5,
+                    0.45,
                     colors.grey
                 ),
 
@@ -841,14 +944,14 @@ def generer_facture_pdf(
                     "BACKGROUND",
                     (0, 0),
                     (0, -1),
-                    colors.lightgrey
+                    colors.whitesmoke
                 ),
 
                 (
                     "VALIGN",
                     (0, 0),
                     (-1, -1),
-                    "TOP"
+                    "MIDDLE"
                 ),
 
                 (
@@ -863,6 +966,20 @@ def generer_facture_pdf(
                     (0, 0),
                     (-1, -1),
                     6
+                ),
+
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    5
+                ),
+
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    5
                 )
             ]
         )
@@ -873,7 +990,7 @@ def generer_facture_pdf(
     )
 
     elements.append(
-        Spacer(1, 20)
+        Spacer(1, 15)
     )
 
     # ========================================================
@@ -883,7 +1000,7 @@ def generer_facture_pdf(
     elements.append(
         Paragraph(
             "Détail des séances",
-            sous_titre
+            section
         )
     )
 
@@ -892,9 +1009,9 @@ def generer_facture_pdf(
         [
             Paragraph("<b>Date</b>", petit),
             Paragraph("<b>Horaire</b>", petit),
-            Paragraph("<b>Durée</b>", petit),
+            Paragraph("<b>Mode</b>", petit),
             Paragraph("<b>Discipline</b>", petit),
-            Paragraph("<b>Contenu</b>", petit)
+            Paragraph("<b>Durée</b>", petit)
         ]
     ]
 
@@ -911,12 +1028,11 @@ def generer_facture_pdf(
         )
 
         if pd.isna(duree):
-
             duree = 0
 
-        total_minutes += float(
-            duree
-        )
+        duree = float(duree)
+
+        total_minutes += duree
 
         date_ligne = str(
             ligne.get(
@@ -924,6 +1040,14 @@ def generer_facture_pdf(
                 ""
             )
         )
+
+        if date_ligne:
+            try:
+                date_ligne = pd.to_datetime(
+                    date_ligne
+                ).strftime("%d/%m/%Y")
+            except Exception:
+                pass
 
         heure_debut = str(
             ligne.get(
@@ -939,6 +1063,13 @@ def generer_facture_pdf(
             )
         )[:5]
 
+        mode = str(
+            ligne.get(
+                "mode",
+                ""
+            )
+        )
+
         discipline = str(
             ligne.get(
                 "disciplines",
@@ -946,37 +1077,32 @@ def generer_facture_pdf(
             )
         )
 
-        contenu = str(
-            ligne.get(
-                "contenu",
-                ""
-            )
-        )
-
         donnees_seances.append(
             [
                 Paragraph(
-                    date_ligne,
+                    html.escape(date_ligne),
                     petit
                 ),
 
                 Paragraph(
-                    f"{heure_debut} → {heure_fin}",
+                    html.escape(
+                        f"{heure_debut}–{heure_fin}"
+                    ),
                     petit
                 ),
 
                 Paragraph(
-                    f"{int(duree)} min",
+                    html.escape(mode),
                     petit
                 ),
 
                 Paragraph(
-                    discipline,
+                    html.escape(discipline),
                     petit
                 ),
 
                 Paragraph(
-                    contenu,
+                    formater_duree(duree),
                     petit
                 )
             ]
@@ -985,11 +1111,11 @@ def generer_facture_pdf(
     table_seances = Table(
         donnees_seances,
         colWidths=[
-            2.1 * cm,
+            2.3 * cm,
             3.0 * cm,
-            2.0 * cm,
-            3.0 * cm,
-            6.0 * cm
+            2.7 * cm,
+            5.4 * cm,
+            2.3 * cm
         ],
         repeatRows=1
     )
@@ -1009,14 +1135,21 @@ def generer_facture_pdf(
                     "BACKGROUND",
                     (0, 0),
                     (-1, 0),
-                    colors.lightgrey
+                    colors.whitesmoke
                 ),
 
                 (
                     "VALIGN",
                     (0, 0),
                     (-1, -1),
-                    "TOP"
+                    "MIDDLE"
+                ),
+
+                (
+                    "ALIGN",
+                    (4, 1),
+                    (4, -1),
+                    "RIGHT"
                 ),
 
                 (
@@ -1055,49 +1188,84 @@ def generer_facture_pdf(
     )
 
     elements.append(
-        Spacer(1, 20)
+        Spacer(1, 14)
     )
 
     # ========================================================
-    # TARIFICATION
+    # CALCUL DU TOTAL
     # ========================================================
 
-    total_heures = (
+    heures_reelles = (
         total_minutes / 60
+    )
+
+    heures_facturees = heures_arrondies_pour_facturation(
+        total_minutes
     )
 
     if type_tarification == "Tarif horaire":
 
         sous_total = (
-            total_heures
+            heures_facturees
             * tarif_horaire
         )
 
     else:
 
-        sous_total = forfait_utilise
+        sous_total = (
+            forfait_utilise
+        )
 
     montant_total = max(
         0,
         sous_total - remise
     )
 
+    # ========================================================
+    # TARIFICATION
+    # ========================================================
+
     elements.append(
         Paragraph(
             "Tarification",
-            sous_titre
+            section
         )
     )
+
+    if type_tarification == "Tarif horaire":
+
+        tarif_label = (
+            f"Tarif horaire : "
+            f"{tarif_horaire:.2f} €"
+        )
+
+        calcul_label = (
+            f"{heures_facturees} h × "
+            f"{tarif_horaire:.2f} €"
+        )
+
+    else:
+
+        tarif_label = (
+            f"Forfait mensuel : "
+            f"{forfait_utilise:.2f} €"
+        )
+
+        calcul_label = (
+            "Forfait mensuel"
+        )
 
     tarif_data = [
 
         [
             Paragraph(
-                "<b>Type de tarification</b>",
+                "<b>Tarification</b>",
                 normal
             ),
             Paragraph(
-                type_tarification,
+                html.escape(
+                    str(type_tarification)
+                ),
                 normal
             )
         ],
@@ -1115,11 +1283,11 @@ def generer_facture_pdf(
 
         [
             Paragraph(
-                "<b>Total d'heures</b>",
+                "<b>Total des séances</b>",
                 normal
             ),
             Paragraph(
-                f"{total_heures:.2f} h",
+                formater_duree(total_minutes),
                 normal
             )
         ]
@@ -1127,16 +1295,45 @@ def generer_facture_pdf(
 
     if type_tarification == "Tarif horaire":
 
-        tarif_data.append(
+        tarif_data.extend(
             [
-                Paragraph(
-                    "<b>Tarif horaire</b>",
-                    normal
-                ),
-                Paragraph(
-                    f"{tarif_horaire:.2f} €",
-                    normal
-                )
+
+                [
+                    Paragraph(
+                        "<b>Heures facturées</b>",
+                        normal
+                    ),
+                    Paragraph(
+                        f"{heures_facturees} h",
+                        normal
+                    )
+                ],
+
+                [
+                    Paragraph(
+                        "<b>Tarif appliqué</b>",
+                        normal
+                    ),
+                    Paragraph(
+                        html.escape(
+                            tarif_label
+                        ),
+                        normal
+                    )
+                ],
+
+                [
+                    Paragraph(
+                        "<b>Calcul</b>",
+                        normal
+                    ),
+                    Paragraph(
+                        html.escape(
+                            calcul_label
+                        ),
+                        normal
+                    )
+                ]
             ]
         )
 
@@ -1145,11 +1342,13 @@ def generer_facture_pdf(
         tarif_data.append(
             [
                 Paragraph(
-                    "<b>Forfait mensuel</b>",
+                    "<b>Tarif appliqué</b>",
                     normal
                 ),
                 Paragraph(
-                    f"{forfait_utilise:.2f} €",
+                    html.escape(
+                        tarif_label
+                    ),
                     normal
                 )
             ]
@@ -1157,6 +1356,7 @@ def generer_facture_pdf(
 
     tarif_data.extend(
         [
+
             [
                 Paragraph(
                     "<b>Sous-total</b>",
@@ -1170,11 +1370,11 @@ def generer_facture_pdf(
 
             [
                 Paragraph(
-                    "<b>Remise</b>",
+                    "<b>Remise exceptionnelle</b>",
                     normal
                 ),
                 Paragraph(
-                    f"{remise:.2f} €",
+                    f"- {remise:.2f} €",
                     normal
                 )
             ],
@@ -1182,11 +1382,11 @@ def generer_facture_pdf(
             [
                 Paragraph(
                     "<b>TOTAL À PAYER</b>",
-                    normal
+                    total_style
                 ),
                 Paragraph(
                     f"<b>{montant_total:.2f} €</b>",
-                    normal
+                    total_style
                 )
             ]
         ]
@@ -1195,8 +1395,8 @@ def generer_facture_pdf(
     table_tarif = Table(
         tarif_data,
         colWidths=[
-            8 * cm,
-            5 * cm
+            8.5 * cm,
+            5.5 * cm
         ],
         hAlign="RIGHT"
     )
@@ -1216,7 +1416,7 @@ def generer_facture_pdf(
                     "BACKGROUND",
                     (0, -1),
                     (-1, -1),
-                    colors.lightgrey
+                    colors.whitesmoke
                 ),
 
                 (
@@ -1224,6 +1424,13 @@ def generer_facture_pdf(
                     (1, 0),
                     (1, -1),
                     "RIGHT"
+                ),
+
+                (
+                    "VALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "MIDDLE"
                 ),
 
                 (
@@ -1238,6 +1445,20 @@ def generer_facture_pdf(
                     (0, 0),
                     (-1, -1),
                     6
+                ),
+
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    5
+                ),
+
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    5
                 )
             ]
         )
@@ -1248,40 +1469,135 @@ def generer_facture_pdf(
     )
 
     elements.append(
-        Spacer(1, 20)
+        Spacer(1, 14)
     )
 
     # ========================================================
-    # PAIEMENT
+    # BILAN COMPORTEMENTAL
     # ========================================================
 
     elements.append(
         Paragraph(
-            "Paiement",
-            sous_titre
+            "Bilan comportemental",
+            section
         )
     )
 
-    texte_paiement = (
-        f"<b>Statut :</b> {statut}"
+    bilan = calculer_bilan_comportemental(
+        df_eleve
     )
 
-    if date_paiement:
+    total_seances = len(
+        df_eleve
+    )
 
-        texte_paiement += (
-            " — Date de paiement : "
-            f"{date_paiement.strftime('%d/%m/%Y')}"
+    bilan_data = []
+
+    for libelle, nombre in bilan.items():
+
+        if nombre > 0:
+
+            bilan_data.append(
+                [
+                    Paragraph(
+                        html.escape(libelle),
+                        normal
+                    ),
+
+                    Paragraph(
+                        f"{nombre} séance(s) / "
+                        f"{total_seances}",
+                        normal
+                    )
+                ]
+            )
+
+    if not bilan_data:
+
+        bilan_data.append(
+            [
+                Paragraph(
+                    "Aucune donnée comportementale renseignée",
+                    normal
+                ),
+
+                Paragraph(
+                    f"0 séance / {total_seances}",
+                    normal
+                )
+            ]
         )
+
+    table_bilan = Table(
+        bilan_data,
+        colWidths=[
+            10.5 * cm,
+            4 * cm
+        ]
+    )
+
+    table_bilan.setStyle(
+        TableStyle(
+            [
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.35,
+                    colors.grey
+                ),
+
+                (
+                    "VALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "MIDDLE"
+                ),
+
+                (
+                    "ALIGN",
+                    (1, 0),
+                    (1, -1),
+                    "RIGHT"
+                ),
+
+                (
+                    "LEFTPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    5
+                ),
+
+                (
+                    "RIGHTPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    5
+                ),
+
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    4
+                ),
+
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    4
+                )
+            ]
+        )
+    )
 
     elements.append(
-        Paragraph(
-            texte_paiement,
-            normal
-        )
+        table_bilan
     )
 
     elements.append(
-        Spacer(1, 20)
+        Spacer(1, 14)
     )
 
     # ========================================================
@@ -1291,29 +1607,140 @@ def generer_facture_pdf(
     elements.append(
         Paragraph(
             "Observation pédagogique",
-            sous_titre
+            section
         )
+    )
+
+    observation_securisee = html.escape(
+        str(
+            observation_pedagogique
+            or ""
+        )
+    ).replace(
+        "\n",
+        "<br/>"
     )
 
     elements.append(
         Paragraph(
-            observation_pedagogique.replace(
-                "\n",
-                "<br/>"
-            ),
-            normal
+            observation_securisee,
+            observation_style
         )
     )
 
     elements.append(
-        Spacer(1, 20)
+        Spacer(1, 14)
     )
+
+    # ========================================================
+    # PAIEMENT
+    # ========================================================
+
+    paiement_data = [
+
+        [
+            Paragraph(
+                "<b>Statut</b>",
+                normal
+            ),
+            Paragraph(
+                html.escape(
+                    str(statut)
+                ),
+                normal
+            )
+        ],
+
+        [
+            Paragraph(
+                "<b>Date de paiement</b>",
+                normal
+            ),
+            Paragraph(
+                (
+                    date_paiement.strftime("%d/%m/%Y")
+                    if date_paiement
+                    else "—"
+                ),
+                normal
+            )
+        ]
+    ]
+
+    table_paiement = Table(
+        paiement_data,
+        colWidths=[
+            4.5 * cm,
+            10.5 * cm
+        ]
+    )
+
+    table_paiement.setStyle(
+        TableStyle(
+            [
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.4,
+                    colors.grey
+                ),
+
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (0, -1),
+                    colors.whitesmoke
+                ),
+
+                (
+                    "LEFTPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    6
+                ),
+
+                (
+                    "RIGHTPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    6
+                ),
+
+                (
+                    "TOPPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    5
+                ),
+
+                (
+                    "BOTTOMPADDING",
+                    (0, 0),
+                    (-1, -1),
+                    5
+                )
+            ]
+        )
+    )
+
+    elements.append(
+        table_paiement
+    )
+
+    elements.append(
+        Spacer(1, 18)
+    )
+
+    # ========================================================
+    # FIN
+    # ========================================================
 
     elements.append(
         Paragraph(
             "Merci pour votre confiance.",
             ParagraphStyle(
-                "Fin",
+                "FinFacture",
                 parent=normal,
                 alignment=TA_CENTER,
                 fontSize=9
@@ -2110,13 +2537,29 @@ elif menu == "📊 Bilan":
             with col2:
 
                 st.metric(
-                    "Heures",
-                    f"{total_minutes / 60:.2f} h"
+                    "Durée",
+                    formater_duree(
+                        total_minutes
+                    )
                 )
 
-            # ------------------------------------------------
-            # OBSERVATION AUTOMATIQUE
-            # ------------------------------------------------
+            st.subheader(
+                "📊 Bilan comportemental"
+            )
+
+            bilan = calculer_bilan_comportemental(
+                df_eleve
+            )
+
+            for libelle, nombre in bilan.items():
+
+                if nombre > 0:
+
+                    st.write(
+                        f"**{libelle} :** "
+                        f"{nombre} séance(s) / "
+                        f"{len(df_eleve)}"
+                    )
 
             st.subheader(
                 "📝 Observation pédagogique automatique"
@@ -2386,8 +2829,14 @@ elif menu == "🧾 Facturation":
                 ].sum()
             )
 
-            total_heures = (
+            total_heures_reelles = (
                 total_minutes / 60
+            )
+
+            heures_facturees = (
+                heures_arrondies_pour_facturation(
+                    total_minutes
+                )
             )
 
             nombre_seances = len(
@@ -2395,11 +2844,21 @@ elif menu == "🧾 Facturation":
             )
 
             # =================================================
-            # OBSERVATION PÉDAGOGIQUE AUTOMATIQUE
+            # OBSERVATION AUTOMATIQUE
             # =================================================
 
             observation_auto = (
                 generer_observation_automatique(
+                    df_eleve
+                )
+            )
+
+            # =================================================
+            # BILAN COMPORTEMENTAL
+            # =================================================
+
+            bilan_comportemental = (
+                calculer_bilan_comportemental(
                     df_eleve
                 )
             )
@@ -2462,8 +2921,14 @@ elif menu == "🧾 Facturation":
                 forfait_utilise = 0.0
 
                 sous_total = (
-                    total_heures
+                    heures_facturees
                     * tarif_horaire
+                )
+
+                st.caption(
+                    f"{formater_duree(total_minutes)} "
+                    f"réalisées → "
+                    f"{heures_facturees} h facturées"
                 )
 
             else:
@@ -2509,8 +2974,10 @@ elif menu == "🧾 Facturation":
             with col2:
 
                 st.metric(
-                    "Heures",
-                    f"{total_heures:.2f} h"
+                    "Durée",
+                    formater_duree(
+                        total_minutes
+                    )
                 )
 
             with col3:
@@ -2720,7 +3187,10 @@ elif menu == "🧾 Facturation":
                                 eleve,
                                 periode,
                                 nombre_seances,
-                                total_heures,
+                                heures_facturees
+                                if type_tarification
+                                == "Tarif horaire"
+                                else total_heures_reelles,
                                 tarif_horaire,
                                 forfait_utilise,
                                 remise,
