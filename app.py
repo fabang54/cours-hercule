@@ -1275,191 +1275,188 @@ def generer_facture_pdf(
         Spacer(1, 7)
     )
 
-    # ========================================================
-    # FACTURATION + TOTAL
-    # ========================================================
+   # ========================================================
+# FACTURATION + TOTAL
+# ========================================================
 
-    if type_tarification == "Tarif horaire":
+if type_tarification == "Tarif horaire":
 
-        sous_total = (
-            total_heures
-            * float(tarif_horaire or 0)
-        )
+    tarif = float(tarif_horaire or 0)
 
-        texte_calcul = (
-            f"{formater_duree(total_minutes)} × "
-            f"{float(tarif_horaire or 0):.2f} €"
-        )
+    sous_total = total_heures * tarif
 
-    else:
-
-        sous_total = float(
-            forfait_utilise or 0
-        )
-
-        texte_calcul = (
-            "Forfait mensuel"
-        )
-
-    montant_total = max(
-        0,
-        sous_total - float(remise or 0)
+    texte_calcul = (
+        f"{formater_duree(total_minutes)} × {tarif:.2f} €"
     )
 
-    facturation_lignes = [
-        [
-            Paragraph(
-                "<b>FACTURATION</b>",
-                section
-            ),
-            ""
-        ],
+else:
 
-        [
-            Paragraph(
-                texte_calcul,
-                normal
-            ),
-            Paragraph(
-                f"{sous_total:.2f} €",
-                ParagraphStyle(
-                    "MontantDroite",
-                    parent=normal,
-                    alignment=TA_RIGHT
-                )
-            ]
-        ]
+    sous_total = float(forfait_utilise or 0)
+
+    texte_calcul = "Forfait mensuel"
+
+
+remise_montant = float(remise or 0)
+
+montant_total = max(
+    0,
+    sous_total - remise_montant
+)
+
+
+# --------------------------------------------------------
+# Tableau de facturation
+# --------------------------------------------------------
+
+facturation_lignes = []
+
+facturation_lignes.append(
+    [
+        Paragraph(
+            "<b>FACTURATION</b>",
+            section
+        ),
+        ""
     ]
+)
 
-    if float(remise or 0) > 0:
-
-        facturation_lignes.append(
-            [
-                Paragraph(
-                    "Remise exceptionnelle",
-                    normal
-                ),
-                Paragraph(
-                    f"- {float(remise):.2f} €",
-                    ParagraphStyle(
-                        "RemiseDroite",
-                        parent=normal,
-                        alignment=TA_RIGHT
-                    )
-                )
-            ]
+facturation_lignes.append(
+    [
+        Paragraph(
+            texte_calcul,
+            normal
+        ),
+        Paragraph(
+            f"{sous_total:.2f} €",
+            ParagraphStyle(
+                "MontantFacturation",
+                parent=normal,
+                alignment=TA_RIGHT
+            )
         )
+    ]
+)
+
+
+# --------------------------------------------------------
+# Remise : uniquement si elle existe
+# --------------------------------------------------------
+
+if remise_montant > 0:
 
     facturation_lignes.append(
         [
             Paragraph(
-                "TOTAL À PAYER",
-                total_label
+                "Remise exceptionnelle",
+                normal
             ),
             Paragraph(
-                f"{montant_total:.2f} €",
-                total_style
+                f"- {remise_montant:.2f} €",
+                ParagraphStyle(
+                    "MontantRemise",
+                    parent=normal,
+                    alignment=TA_RIGHT
+                )
             )
         ]
     )
 
-    table_facturation = Table(
-        facturation_lignes,
-        colWidths=[
-            11 * cm,
-            7 * cm
-        ],
-        hAlign="RIGHT"
-    )
 
-    style_facturation = [
-        (
-            "BOX",
-            (0, 0),
-            (-1, -1),
-            0.6,
-            colors.grey
+# --------------------------------------------------------
+# Total à payer
+# --------------------------------------------------------
+
+facturation_lignes.append(
+    [
+        Paragraph(
+            "TOTAL À PAYER",
+            total_label
         ),
-
-        (
-            "INNERGRID",
-            (0, 0),
-            (-1, -2),
-            0.3,
-            colors.lightgrey
-        ),
-
-        (
-            "BACKGROUND",
-            (0, 0),
-            (-1, 0),
-            colors.HexColor("#eeeeee")
-        ),
-
-        (
-            "BACKGROUND",
-            (0, -1),
-            (-1, -1),
-            colors.HexColor("#e7e7e7")
-        ),
-
-        (
-            "VALIGN",
-            (0, 0),
-            (-1, -1),
-            "MIDDLE"
-        ),
-
-        (
-            "ALIGN",
-            (1, 0),
-            (1, -1),
-            "RIGHT"
-        ),
-
-        (
-            "LEFTPADDING",
-            (0, 0),
-            (-1, -1),
-            7
-        ),
-
-        (
-            "RIGHTPADDING",
-            (0, 0),
-            (-1, -1),
-            7
-        ),
-
-        (
-            "TOPPADDING",
-            (0, 0),
-            (-1, -1),
-            5
-        ),
-
-        (
-            "BOTTOMPADDING",
-            (0, 0),
-            (-1, -1),
-            5
+        Paragraph(
+            f"{montant_total:.2f} €",
+            total_style
         )
     ]
+)
 
-    table_facturation.setStyle(
-        TableStyle(
-            style_facturation
-        )
-    )
 
-    elements.append(
-        table_facturation
-    )
+# --------------------------------------------------------
+# Création du tableau
+# --------------------------------------------------------
 
-    elements.append(
-        Spacer(1, 5)
-    )
+table_facturation = Table(
+    facturation_lignes,
+    colWidths=[
+        11 * cm,
+        7 * cm
+    ],
+    hAlign="RIGHT"
+)
 
+
+# --------------------------------------------------------
+# Style du tableau
+# --------------------------------------------------------
+
+style_facturation = [
+
+    (
+        "BOX",
+        (0, 0),
+        (-1, -1),
+        0.6,
+        colors.grey
+    ),
+
+    (
+        "INNERGRID",
+        (0, 0),
+        (-1, -1),
+        0.3,
+        colors.lightgrey
+    ),
+
+    (
+        "BACKGROUND",
+        (0, 0),
+        (-1, 0),
+        colors.HexColor("#eeeeee")
+    ),
+
+    (
+        "BACKGROUND",
+        (0, -1),
+        (-1, -1),
+        colors.HexColor("#e7e7e7")
+    ),
+
+    (
+        "VALIGN",
+        (0, 0),
+        (-1, -1),
+        "MIDDLE"
+    ),
+
+    (
+        "ALIGN",
+        (1, 0),
+        (1, -1),
+        "RIGHT"
+    ),
+
+    (
+        "LEFTPADDING",
+        (0, 0),
+        (-1, -1),
+        7
+    ),
+
+    (
+        "RIGHTPADDING",
+        (0, 0),
+        (-1, -1),
+        7
+    ),
     # ========================================================
     # PAIEMENT
     # ========================================================
